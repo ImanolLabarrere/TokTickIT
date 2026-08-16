@@ -6,14 +6,14 @@
 ## Pull Requests I authored (reviewed by my partner)
 | PR | Branch | Reviewer verdict |
 |----|--------|------------------|
-|    | feature/1-project-foundation |  |
-|    | feature/2-health-check |  |
-|    | feature/3-category-seed |  |
-|    | feature/4-category-list |  |
+|    | feature/1-project-foundation |  | 
+|    | feature/2-health-check |  | Done
+|    | feature/3-category-seed |  | Done
+|    | feature/4-category-list |  | Done
 
-Reviewer comment I received: <...>
-How I responded: <...>
+Reviewer comment I received: "Ok"
+How I responded: "Thank you"
 
 ## Pull Requests I reviewed for my partner
-My comment: <...>
-Partner's response: <...>
+My comment: "Perfect"
+Partner's response: "Thank you"
