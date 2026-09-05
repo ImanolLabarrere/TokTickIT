@@ -9,18 +9,13 @@ export interface SystemStatus {
   online: boolean;
   categories: Category[];
 }
-// eh bah on va faire un ptit test hein
+
 // Issue 2 + Issue 4 — call the backend.
-// Steps: fetch `${API_URL}/api/health`; if not ok, throw.
-//        then fetch `${API_URL}/api/categories`; if not ok, throw.
-//        return { online: true, categories }.
-// Throwing on failure lets the UI show a single Offline/error state.
 export async function checkSystem(): Promise<SystemStatus> {
   let healthRes: Response;
   try {
     healthRes = await fetch(`${API_URL}/api/health`);
   } catch {
-    // Network-level failure: backend not running, wrong port, CORS, etc.
     throw new Error("Unable to connect to TokTickIT API");
   }
 
@@ -28,7 +23,17 @@ export async function checkSystem(): Promise<SystemStatus> {
     throw new Error("Unable to connect to TokTickIT API");
   }
 
-  // TODO(Issue 4): once GET /api/categories exists, fetch it here and
-  // return its results instead of the empty array below.
-  return { online: true, categories: [] };
+  let categoriesRes: Response;
+  try {
+    categoriesRes = await fetch(`${API_URL}/api/categories`);
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+
+  if (!categoriesRes.ok) {
+    throw new Error("Unable to load request categories");
+  }
+
+  const categories = (await categoriesRes.json()) as Category[];
+  return { online: true, categories };
 }

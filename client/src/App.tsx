@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { checkSystem, Category } from "./api.js";
 
-// UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
 export default function App() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
-  void categories; // TODO(Issue 4): render this list once /api/categories exists.
 
   async function handleCheck() {
     setState("loading");
@@ -37,10 +35,17 @@ export default function App() {
       )}
 
       {state === "success" && (
-        <p className="mt-3 mb-0">
-          <strong>System Status:</strong> <span className="text-success">Online</span>
-        </p>
-        // TODO(Issue 4): render the "Supported Request Categories" list here.
+        <div className="mt-3">
+          <p className="mb-2">
+            <strong>System Status:</strong> <span className="text-success">Online</span>
+          </p>
+          <p className="mb-1 fw-semibold">Supported Request Categories</p>
+          <ul className="mb-0">
+            {categories.map((category) => (
+              <li key={category.id}>{category.name}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {state === "error" && (
