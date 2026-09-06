@@ -1,48 +1,27 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import App from "../../src/App.js";
 import * as api from "../../src/api.js";
 
+// NOTE: Lab 1's "Check System" home screen (checkSystem-driven Online/Offline +
+// category list) has been superseded. In Lab 2, App.tsx's role changed to
+// gating the whole app behind Development Requester Selection (see
+// client/tests/lab-02/RequesterSelection.test.tsx for the equivalent, and
+// more detailed, coverage). This file keeps one smoke test so `App` itself
+// stays covered.
 describe("App", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
   });
 
-  it("renders the TokTickIT heading", () => {
-    render(<App />);
-    expect(screen.getByText(/TokTickIT/i)).toBeInTheDocument();
-  });
-
-  it("shows Online and the seeded categories on success", async () => {
-    vi.spyOn(api, "checkSystem").mockResolvedValue({
-      online: true,
-      categories: [
-        { id: 1, name: "Account and Access" },
-        { id: 2, name: "Hardware" },
-        { id: 3, name: "Software" },
-        { id: 4, name: "Network" },
-      ],
-    });
+  it("renders the Requester Selection screen when no Requester is selected yet", async () => {
+    vi.spyOn(api, "getRequesters").mockResolvedValue([
+      { id: 1, name: "Jennifer Anderson", email: "jennifer.anderson@example.com" },
+    ]);
 
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /check system/i }));
 
-    await waitFor(() => expect(screen.getByText(/online/i)).toBeInTheDocument());
-    expect(screen.getByText("Account and Access")).toBeInTheDocument();
-    expect(screen.getByText("Hardware")).toBeInTheDocument();
-    expect(screen.getByText("Software")).toBeInTheDocument();
-    expect(screen.getByText("Network")).toBeInTheDocument();
-  });
-
-  it("shows an Offline error message when the API is unavailable", async () => {
-    vi.spyOn(api, "checkSystem").mockRejectedValue(
-      new Error("Unable to connect to TokTickIT API")
-    );
-
-    render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /check system/i }));
-
-    await waitFor(() => expect(screen.getByText(/offline/i)).toBeInTheDocument());
-    expect(screen.getByText(/unable to connect to toktickit api/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/select development requester/i)).toBeInTheDocument());
   });
 });

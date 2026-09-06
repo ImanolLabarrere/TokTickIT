@@ -38,4 +38,36 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Lab 2 Issue 2 — Development Requester context
+// GET /api/requesters      -> active Requesters only, for the selector
+// GET /api/related-systems -> full seeded list, for Create Ticket (Issue 3)
+// ---------------------------------------------------------------------------
+app.get("/api/requesters", async (_req: Request, res: Response) => {
+  try {
+    const requesters = await getPrisma().requester.findMany({
+      where: { isActive: true },
+      orderBy: { id: "asc" },
+      select: { id: true, name: true, email: true },
+    });
+    res.status(200).json(requesters);
+  } catch (err) {
+    console.error("GET /api/requesters failed:", err);
+    res.status(500).json({ error: "Unable to load requesters" });
+  }
+});
+
+app.get("/api/related-systems", async (_req: Request, res: Response) => {
+  try {
+    const relatedSystems = await getPrisma().relatedSystem.findMany({
+      orderBy: { id: "asc" },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(relatedSystems);
+  } catch (err) {
+    console.error("GET /api/related-systems failed:", err);
+    res.status(500).json({ error: "Unable to load related systems" });
+  }
+});
+
 export default app;
