@@ -10,6 +10,45 @@ export interface SystemStatus {
   categories: Category[];
 }
 
+export interface Requester {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface RelatedSystem {
+  id: number;
+  name: string;
+}
+
+// Lab 2 Issue 2 — active Development Requesters, for the selector.
+export async function getRequesters(): Promise<Requester[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/requesters`);
+  } catch {
+    throw new Error("Unable to load Development Requesters.");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load Development Requesters.");
+  }
+  return res.json();
+}
+
+// Lab 2 Issue 2 — full Related System list (used by Create Ticket in Issue 3).
+export async function getRelatedSystems(): Promise<RelatedSystem[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/related-systems`);
+  } catch {
+    throw new Error("Unable to load related systems.");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load related systems.");
+  }
+  return res.json();
+}
+
 // Issue 2 + Issue 4 — call the backend.
 export async function checkSystem(): Promise<SystemStatus> {
   let healthRes: Response;
