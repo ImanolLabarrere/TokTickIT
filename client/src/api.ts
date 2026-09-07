@@ -10,7 +10,123 @@ export interface SystemStatus {
   categories: Category[];
 }
 
-// Issue 2 + Issue 4 — call the backend.
+export interface Requester {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface RelatedSystem {
+  id: number;
+  name: string;
+}
+
+// Lab 2 Issue 3 — active Categories, for the Create Ticket dropdown.
+export async function getCategories(): Promise<Category[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/categories`);
+  } catch {
+    throw new Error("Unable to load categories.");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load categories.");
+  }
+  return res.json();
+}
+
+// Lab 2 Issue 2 — active Development Requesters, for the selector.
+export async function getRequesters(): Promise<Requester[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/requesters`);
+  } catch {
+    throw new Error("Unable to load Development Requesters.");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load Development Requesters.");
+  }
+  return res.json();
+}
+
+// Lab 2 Issue 2 — full Related System list (used by Create Ticket in Issue 3).
+export async function getRelatedSystems(): Promise<RelatedSystem[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/related-systems`);
+  } catch {
+    throw new Error("Unable to load related systems.");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load related systems.");
+  }
+  return res.json();
+}
+
+// Lab 2 Issue 3 — create a Ticket (with optional attachments).
+export type Priority = "LOW" | "MEDIUM" | "HIGH";
+
+export interface CreateTicketPayload {
+  categoryId: number;
+  relatedSystemId: number;
+  summary: string;
+  description: string;
+  requestedPriority: Priority;
+  attachments: File[];
+}
+
+export interface CreateTicketResult {
+  id: number;
+  ticketNumber: string;
+  currentStatus: string;
+  createdAt: string;
+}
+
+export type FieldErrors = Record<string, string>;
+
+export class ValidationError extends Error {
+  fields: FieldErrors;
+  constructor(fields: FieldErrors) {
+    super("Validation failed");
+    this.name = "ValidationError";
+    this.fields = fields;
+  }
+}
+
+export async function createTicket(
+  payload: CreateTicketPayload,
+  requesterId: number
+): Promise<CreateTicketResult> {
+  const formData = new FormData();
+  formData.append("categoryId", String(payload.categoryId));
+  formData.append("relatedSystemId", String(payload.relatedSystemId));
+  formData.append("summary", payload.summary);
+  formData.append("description", payload.description);
+  formData.append("requestedPriority", payload.requestedPriority);
+  for (const file of payload.attachments) {
+    formData.append("attachments", file);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/tickets`, {
+      method: "POST",
+      headers: { "X-Requester-Id": String(requesterId) },
+      body: formData,
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+
+  if (res.status === 400) {
+    const body = await res.json().catch(() => ({ fields: {} }));
+    throw new ValidationError(body.fields ?? {});
+  }
+  if (!res.ok) {
+    throw new Error("Unable to create the ticket. Please try again.");
+  }
+  return res.json();
+}
 export async function checkSystem(): Promise<SystemStatus> {
   let healthRes: Response;
   try {
