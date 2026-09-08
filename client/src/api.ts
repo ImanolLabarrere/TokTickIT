@@ -127,6 +127,71 @@ export async function createTicket(
   }
   return res.json();
 }
+// Lab 2 Issue 4 — My Tickets list (search/filter/sort/pagination).
+export type TicketStatusValue = "NEW";
+
+export interface TicketListItem {
+  id: number;
+  ticketNumber: string | null;
+  summary: string;
+  requestedPriority: Priority;
+  currentStatus: TicketStatusValue;
+  createdAt: string;
+  updatedAt: string;
+  category: { id: number; name: string };
+}
+
+export interface TicketListPagination {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface TicketListResponse {
+  data: TicketListItem[];
+  pagination: TicketListPagination;
+}
+
+export interface TicketListParams {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: Priority;
+  status?: TicketStatusValue;
+  sortBy?: "ticketNumber" | "createdAt" | "updatedAt";
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export async function getTickets(
+  params: TicketListParams,
+  requesterId: number
+): Promise<TicketListResponse> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.categoryId) query.set("categoryId", String(params.categoryId));
+  if (params.requestedPriority) query.set("requestedPriority", params.requestedPriority);
+  if (params.status) query.set("status", params.status);
+  if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.sortDir) query.set("sortDir", params.sortDir);
+  query.set("page", String(params.page ?? 1));
+  query.set("pageSize", String(params.pageSize ?? 10));
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/tickets?${query.toString()}`, {
+      headers: { "X-Requester-Id": String(requesterId) },
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load tickets. Please try again.");
+  }
+  return res.json();
+}
+
 export async function checkSystem(): Promise<SystemStatus> {
   let healthRes: Response;
   try {
