@@ -50,7 +50,12 @@ for (const viewport of VIEWPORTS) {
       .getByRole("navigation")
       .getByRole("button", { name: /^my tickets$/i })
       .click();
-    await page.waitForSelector("table, .card");
+    // Wait for whichever list container is actually rendered for this
+    // viewport — the desktop table and mobile cards both exist in the DOM
+    // at once (Bootstrap hides one via CSS), so a combined "table, .card"
+    // selector can match a permanently-hidden element and time out.
+    const listSelector = viewport.width < 768 ? ".d-md-none .card" : ".table-responsive table";
+    await page.waitForSelector(listSelector);
     await page.screenshot({
       path: `artifacts/lab-02/screenshots/my-tickets/${viewport.name}.png`,
       fullPage: true,

@@ -72,12 +72,18 @@ test.describe("Requester ticket flow — happy path (E2E-01)", () => {
 
     await page.getByLabel(/reason for removal/i).fill("Removed by the Lab 2 E2E test.");
     await page.getByRole("button", { name: /confirm removal/i }).click();
-    await expect(page.getByText(/removed/i)).toBeVisible();
+    await expect(page.getByText("Removed", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^download$/i })).toHaveCount(0);
 
-    // 7. Reload and confirm the removed state persists (it's read from the DB, not local state).
+    // 7. Reload (resets the app to My Tickets, since screen state lives only
+    //    in React memory, not the URL) and confirm removal really persisted
+    //    in the database by reopening the same ticket.
     await page.reload();
-    await expect(page.getByText(/removed/i)).toBeVisible();
+    await page.getByLabel(/^search/i).fill(uniqueSummary);
+    await page.getByRole("button", { name: /^search$/i }).click();
+    await page.getByText(uniqueSummary).first().click();
+    await expect(page.getByRole("heading", { name: /^ticket tkt-/i })).toBeVisible();
+    await expect(page.getByText("Removed", { exact: true })).toBeVisible();
   });
 });
 
