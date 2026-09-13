@@ -192,6 +192,134 @@ export async function getTickets(
   return res.json();
 }
 
+// Lab 2 Issue 5 — Ticket Detail + Attachments.
+export interface AttachmentItem {
+  id: number;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  isRemoved: boolean;
+  removedAt: string | null;
+  removalReason: string | null;
+}
+
+export interface TicketDetailResponse {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  description: string;
+  requestedPriority: Priority;
+  currentStatus: TicketStatusValue;
+  createdAt: string;
+  updatedAt: string;
+  requester: { id: number; name: string; email: string };
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string };
+  attachments: AttachmentItem[];
+}
+
+export async function getTicketDetail(
+  ticketId: number,
+  requesterId: number
+): Promise<TicketDetailResponse> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
+      headers: { "X-Requester-Id": String(requesterId) },
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (res.status === 404) {
+    throw new Error("Ticket not found.");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to load ticket. Please try again.");
+  }
+  return res.json();
+}
+
+export async function addAttachment(
+  ticketId: number,
+  file: File,
+  requesterId: number
+): Promise<AttachmentItem[]> {
+  const formData = new FormData();
+  formData.append("attachments", file);
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+      method: "POST",
+      headers: { "X-Requester-Id": String(requesterId) },
+      body: formData,
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "Unable to upload attachment." }));
+    throw new Error(body.error ?? "Unable to upload attachment.");
+  }
+  const body = await res.json();
+  return body.attachments;
+}
+
+// Downloads via fetch+blob (not a plain <a href>) because the download
+// endpoint requires the X-Requester-Id header, which a normal link can't send.
+export async function downloadAttachment(
+  attachmentId: number,
+  fileName: string,
+  requesterId: number
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/attachments/${attachmentId}/download`, {
+      headers: { "X-Requester-Id": String(requesterId) },
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (res.status === 410) {
+    throw new Error("This attachment has been removed and is no longer available.");
+  }
+  if (!res.ok) {
+    throw new Error("Unable to download attachment.");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function removeAttachment(
+  attachmentId: number,
+  reason: string,
+  requesterId: number
+): Promise<AttachmentItem> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/attachments/${attachmentId}/remove`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-Requester-Id": String(requesterId) },
+      body: JSON.stringify({ reason }),
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "Unable to remove attachment." }));
+    throw new Error(body.error ?? "Unable to remove attachment.");
+  }
+  return res.json();
+}
+
 export async function checkSystem(): Promise<SystemStatus> {
   let healthRes: Response;
   try {

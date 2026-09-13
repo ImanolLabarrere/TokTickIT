@@ -22,9 +22,10 @@ function statusBadgeClass(): string {
 
 interface MyTicketsProps {
   onCreateTicket: () => void;
+  onOpenTicket: (ticketId: number) => void;
 }
 
-export default function MyTickets({ onCreateTicket }: MyTicketsProps) {
+export default function MyTickets({ onCreateTicket, onOpenTicket }: MyTicketsProps) {
   const { currentRequester } = useRequester();
 
   const [status, setStatus] = useState<Status>("loading");
@@ -254,7 +255,20 @@ export default function MyTickets({ onCreateTicket }: MyTicketsProps) {
               </thead>
               <tbody>
                 {tickets.map((t) => (
-                  <tr key={t.id}>
+                  <tr
+                    key={t.id}
+                    onClick={() => onOpenTicket(t.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onOpenTicket(t.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Open ticket ${t.ticketNumber}`}
+                    style={{ cursor: "pointer" }}
+                  >
                     <td>{t.ticketNumber}</td>
                     <td>{t.summary}</td>
                     <td>{t.category.name}</td>
@@ -275,7 +289,21 @@ export default function MyTickets({ onCreateTicket }: MyTicketsProps) {
 
           <div className="d-md-none">
             {tickets.map((t) => (
-              <div className="card mb-2" key={t.id}>
+              <div
+                className="card mb-2"
+                key={t.id}
+                onClick={() => onOpenTicket(t.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onOpenTicket(t.id);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open ticket ${t.ticketNumber}`}
+                style={{ cursor: "pointer" }}
+              >
                 <div className="card-body">
                   <div className="d-flex justify-content-between">
                     <strong>{t.ticketNumber}</strong>

@@ -1,10 +1,11 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import fs from "node:fs";
+import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { getPrisma } from "./prisma.js";
 import { requireRequester } from "./middleware/requireRequester.js";
-import { attachmentsUpload } from "./upload.js";
+import { attachmentsUpload, MAX_ATTACHMENTS_PER_TICKET, UPLOAD_DIR } from "./upload.js";
 
 // The Express app is exported separately from app.listen() (see index.ts) so
 // Supertest can import `app` without opening a port. Do not merge these files.
@@ -268,6 +269,201 @@ app.get("/api/tickets", requireRequester, async (req: Request, res: Response) =>
   } catch (err) {
     console.error("GET /api/tickets failed:", err);
     res.status(500).json({ error: "Unable to load tickets" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Lab 2 Issue 5 — Ticket Detail + Attachments
+// BR-09: findFirst({id, requesterId}) gives an identical 404 whether the
+// Ticket doesn't exist or belongs to someone else (never distinguished).
+// ---------------------------------------------------------------------------
+app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response) => {
+  const requesterId = req.requesterId as number;
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+
+  try {
+    const ticket = await getPrisma().ticket.findFirst({
+      where: { id, requesterId },
+      include: {
+        category: { select: { id: true, name: true } },
+        relatedSystem: { select: { id: true, name: true } },
+        requester: { select: { id: true, name: true, email: true } },
+        attachments: {
+          orderBy: { uploadedAt: "asc" },
+          select: {
+            id: true,
+            fileName: true,
+            mimeType: true,
+            sizeBytes: true,
+            uploadedAt: true,
+            isRemoved: true,
+            removedAt: true,
+            removalReason: true,
+          },
+        },
+      },
+    });
+
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found." });
+      return;
+    }
+    res.status(200).json(ticket);
+  } catch (err) {
+    console.error("GET /api/tickets/:id failed:", err);
+    res.status(500).json({ error: "Unable to load ticket" });
+  }
+});
+
+app.post(
+  "/api/tickets/:id/attachments",
+  requireRequester,
+  attachmentsUpload,
+  async (req: Request, res: Response) => {
+    const requesterId = req.requesterId as number;
+    const ticketId = Number(req.params.id);
+    const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+
+    function cleanup() {
+      for (const file of files) fs.unlink(file.path, () => undefined);
+    }
+
+    if (!Number.isInteger(ticketId)) {
+      cleanup();
+      res.status(404).json({ error: "Ticket not found." });
+      return;
+    }
+
+    try {
+      const ticket = await getPrisma().ticket.findFirst({ where: { id: ticketId, requesterId } });
+      if (!ticket) {
+        cleanup();
+        res.status(404).json({ error: "Ticket not found." });
+        return;
+      }
+      if (files.length === 0) {
+        res.status(400).json({ error: "Select at least one file to attach." });
+        return;
+      }
+
+      const activeCount = await getPrisma().attachment.count({
+        where: { ticketId, isRemoved: false },
+      });
+      if (activeCount + files.length > MAX_ATTACHMENTS_PER_TICKET) {
+        cleanup();
+        res
+          .status(400)
+          .json({ error: `A Ticket may have at most ${MAX_ATTACHMENTS_PER_TICKET} attachments.` });
+        return;
+      }
+
+      await getPrisma().attachment.createMany({
+        data: files.map((file) => ({
+          ticketId,
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          storagePath: file.filename,
+        })),
+      });
+
+      const attachments = await getPrisma().attachment.findMany({
+        where: { ticketId },
+        orderBy: { uploadedAt: "asc" },
+        select: {
+          id: true,
+          fileName: true,
+          mimeType: true,
+          sizeBytes: true,
+          uploadedAt: true,
+          isRemoved: true,
+          removedAt: true,
+          removalReason: true,
+        },
+      });
+
+      res.status(201).json({ attachments });
+    } catch (err) {
+      cleanup();
+      console.error("POST /api/tickets/:id/attachments failed:", err);
+      res.status(500).json({ error: "Unable to upload attachment. Please try again." });
+    }
+  }
+);
+
+app.get("/api/attachments/:id/download", requireRequester, async (req: Request, res: Response) => {
+  const requesterId = req.requesterId as number;
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Attachment not found." });
+    return;
+  }
+
+  try {
+    const attachment = await getPrisma().attachment.findFirst({
+      where: { id, ticket: { requesterId } },
+    });
+    if (!attachment) {
+      res.status(404).json({ error: "Attachment not found." });
+      return;
+    }
+    if (attachment.isRemoved) {
+      res
+        .status(410)
+        .json({ error: "This attachment has been removed and is no longer available." });
+      return;
+    }
+
+    const filePath = path.join(UPLOAD_DIR, attachment.storagePath);
+    res.download(filePath, attachment.fileName);
+  } catch (err) {
+    console.error("GET /api/attachments/:id/download failed:", err);
+    res.status(500).json({ error: "Unable to download attachment" });
+  }
+});
+
+app.patch("/api/attachments/:id/remove", requireRequester, async (req: Request, res: Response) => {
+  const requesterId = req.requesterId as number;
+  const id = Number(req.params.id);
+  const reason = typeof req.body.reason === "string" ? req.body.reason.trim() : "";
+
+  if (!Number.isInteger(id)) {
+    res.status(404).json({ error: "Attachment not found." });
+    return;
+  }
+  if (reason.length < 3 || reason.length > 200) {
+    res.status(400).json({ error: "A removal reason (3-200 characters) is required." });
+    return;
+  }
+
+  try {
+    const attachment = await getPrisma().attachment.findFirst({
+      where: { id, ticket: { requesterId } },
+    });
+    if (!attachment) {
+      res.status(404).json({ error: "Attachment not found." });
+      return;
+    }
+    if (attachment.isRemoved) {
+      res.status(400).json({ error: "This attachment was already removed." });
+      return;
+    }
+
+    const updated = await getPrisma().attachment.update({
+      where: { id },
+      data: { isRemoved: true, removedAt: new Date(), removalReason: reason },
+    });
+
+    res.status(200).json(updated);
+  } catch (err) {
+    console.error("PATCH /api/attachments/:id/remove failed:", err);
+    res.status(500).json({ error: "Unable to remove attachment" });
   }
 });
 

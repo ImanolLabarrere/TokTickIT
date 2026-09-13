@@ -6,7 +6,7 @@ import * as api from "../../src/api.js";
 
 const STORAGE_KEY = "toktickit.selectedRequesterId";
 
-function renderWithSelectedRequester(onCreateTicket = vi.fn()) {
+function renderWithSelectedRequester(onCreateTicket = vi.fn(), onOpenTicket = vi.fn()) {
   sessionStorage.setItem(STORAGE_KEY, "1");
   vi.spyOn(api, "getRequesters").mockResolvedValue([
     { id: 1, name: "Jennifer Anderson", email: "jennifer.anderson@example.com" },
@@ -14,7 +14,7 @@ function renderWithSelectedRequester(onCreateTicket = vi.fn()) {
   vi.spyOn(api, "getCategories").mockResolvedValue([{ id: 1, name: "Hardware" }]);
   return render(
     <RequesterProvider>
-      <MyTickets onCreateTicket={onCreateTicket} />
+      <MyTickets onCreateTicket={onCreateTicket} onOpenTicket={onOpenTicket} />
     </RequesterProvider>
   );
 }
@@ -93,5 +93,19 @@ describe("MyTickets", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /create your first ticket/i }));
     expect(onCreateTicket).toHaveBeenCalled();
+  });
+
+  it("calls onOpenTicket when a ticket row is clicked", async () => {
+    const onOpenTicket = vi.fn();
+    vi.spyOn(api, "getTickets").mockResolvedValue({
+      data: [SAMPLE_TICKET],
+      pagination: { page: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
+    });
+
+    renderWithSelectedRequester(vi.fn(), onOpenTicket);
+
+    await waitFor(() => expect(screen.getAllByText("TKT-2026-000001").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByRole("button", { name: /open ticket tkt-2026-000001/i })[0]);
+    expect(onOpenTicket).toHaveBeenCalledWith(1);
   });
 });
