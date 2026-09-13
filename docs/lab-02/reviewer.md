@@ -1,10 +1,10 @@
 # Lab 2 — Peer Review Record
 
 ## Reviewer Identity
-- **Name:** _______________________
-- **Student ID:** _______________________
-- **GitHub username:** _______________________
-- **Partner's name / GitHub username:** _______________________
+- **Name:** Imanol LABARRERE
+- **Student ID:** 69540460013   
+- **GitHub username:** ImanolLabarrere
+- **Partner's name / GitHub username:** Léo LEPOUTRE (LeoMin13)
 
 ## Pull Requests I Authored (reviewed by my partner)
 | Issue | PR link | Partner's review comment | My response |
