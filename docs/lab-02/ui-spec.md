@@ -66,3 +66,12 @@ order; priority/status never color-only (text label always present); errors use 
 ## Screenshots
 Captured with Playwright (Issue 6) at desktop/tablet/mobile for all 3 screens, saved under
 `artifacts/lab-02/screenshots/{create-ticket,my-tickets,ticket-detail}/`.
+## Visual Checklist (§8.8)
+
+| Check | Desktop | Tablet | Mobile |
+|---|---|---|---|
+| No clipped labels | V | V | V |
+| No overlapping messages | V| V | V|
+| No unintended horizontal scroll | V | V | V |
+| Consistent field styling (editable vs read-only) | V | V | V |
+| Badge consistency (Priority/Status) | V | V | V |
