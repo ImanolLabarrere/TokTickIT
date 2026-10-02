@@ -25,8 +25,8 @@ export async function requireRequester(req: Request, res: Response, next: NextFu
   }
 
   try {
-    const requester = await getPrisma().requester.findUnique({ where: { id } });
-    if (!requester || !requester.isActive) {
+    const requester = await getPrisma().user.findUnique({ where: { id } });
+    if (!requester || !requester.isActive || requester.role !== "REQUESTER") {
       res.status(400).json({ error: "Unknown or inactive Requester" });
       return;
     }

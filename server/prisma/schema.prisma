@@ -13,6 +13,13 @@ datasource db {
 // ---------------------------------------------------------------------------
 // Issue 3 — Create and seed IT request categories
 // ---------------------------------------------------------------------------
+
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
 model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
@@ -22,13 +29,18 @@ model Category {
 
 // ---------------------------------------------------------------------------
 // Lab 2 Issue 2 — Development Requester context
+// Lab 3 Issue 2 — renamed Requester -> User (see docs/lab-03/specification.md §9)
 // ---------------------------------------------------------------------------
-model Requester {
+model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+    role               Role     @default(REQUESTER)
+  passwordHash       String
+  mustChangePassword Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
   tickets   Ticket[]
 }
 
@@ -57,7 +69,7 @@ model Ticket {
   id                Int           @id @default(autoincrement())
   ticketNumber      String?       @unique
   requesterId       Int
-  requester         Requester     @relation(fields: [requesterId], references: [id])
+  requester         User          @relation(fields: [requesterId], references: [id])
   categoryId        Int
   category          Category      @relation(fields: [categoryId], references: [id])
   relatedSystemId   Int

@@ -346,3 +346,74 @@ export async function checkSystem(): Promise<SystemStatus> {
   const categories = (await categoriesRes.json()) as Category[];
   return { online: true, categories };
 }
+
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 2 — Authentication
+// ---------------------------------------------------------------------------
+export type Role = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  mustChangePassword: boolean;
+}
+
+async function parseAuthError(res: Response, fallback: string): Promise<never> {
+  const body = await res.json().catch(() => ({ error: fallback }));
+  throw new Error(body.error ?? fallback);
+}
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/auth/login`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    await parseAuthError(res, "Invalid email or password");
+  }
+  const body = await res.json();
+  return body.user;
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+}
+
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/auth/me`, { credentials: "include" });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  const body = await res.json();
+  return body.user;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    await parseAuthError(res, "Unable to change password.");
+  }
+}
