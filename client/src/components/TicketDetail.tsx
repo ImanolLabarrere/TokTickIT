@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, ChangeEvent } from "react";
-import { useRequester } from "../context/RequesterContext.js";
+import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
 import {
   getTicketDetail,
   addAttachment,
   removeAttachment,
   downloadAttachment,
+  postComment,
+  markProblemAppearsResolved,
   TicketDetailResponse,
   AttachmentItem,
 } from "../api.js";
@@ -21,8 +22,6 @@ interface TicketDetailProps {
 }
 
 export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
-  const { currentRequester } = useRequester();
-
   const [status, setStatus] = useState<Status>("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [ticket, setTicket] = useState<TicketDetailResponse | null>(null);
@@ -37,12 +36,18 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
 
   const [downloadError, setDownloadError] = useState("");
 
+  // Lab 3 Issue 3 — FR-05: Public Comments + "Problem Appears Resolved".
+  const [commentText, setCommentText] = useState("");
+  const [commentError, setCommentError] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [resolvingError, setResolvingError] = useState("");
+  const [markingResolved, setMarkingResolved] = useState(false);
+
   const load = useCallback(async () => {
-    if (!currentRequester) return;
     setStatus("loading");
     setErrorMessage("");
     try {
-      const result = await getTicketDetail(ticketId, currentRequester.id);
+      const result = await getTicketDetail(ticketId);
       setTicket(result);
       setStatus("ready");
     } catch (err) {
@@ -51,7 +56,7 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
       );
       setStatus("error");
     }
-  }, [ticketId, currentRequester]);
+  }, [ticketId]);
 
   useEffect(() => {
     load();
@@ -62,7 +67,7 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !currentRequester) return;
+    if (!file) return;
 
     setUploadError("");
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -80,7 +85,7 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
 
     setUploading(true);
     try {
-      const attachments = await addAttachment(ticketId, file, currentRequester.id);
+      const attachments = await addAttachment(ticketId, file);
       setTicket((prev) => (prev ? { ...prev, attachments } : prev));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Unable to upload attachment.");
@@ -90,10 +95,9 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
   }
 
   async function handleDownload(attachment: AttachmentItem) {
-    if (!currentRequester) return;
     setDownloadError("");
     try {
-      await downloadAttachment(attachment.id, attachment.fileName, currentRequester.id);
+      await downloadAttachment(attachment.id, attachment.fileName);
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : "Unable to download attachment.");
     }
@@ -112,7 +116,7 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
   }
 
   async function confirmRemove() {
-    if (removingId === null || !currentRequester) return;
+    if (removingId === null) return;
     const reason = removeReason.trim();
     if (reason.length < 3 || reason.length > 200) {
       setRemoveError("Enter a reason (3-200 characters).");
@@ -120,7 +124,7 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
     }
     setRemoving(true);
     try {
-      const updated = await removeAttachment(removingId, reason, currentRequester.id);
+      const updated = await removeAttachment(removingId, reason);
       setTicket((prev) =>
         prev
           ? { ...prev, attachments: prev.attachments.map((a) => (a.id === updated.id ? updated : a)) }
@@ -132,6 +136,41 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
       setRemoveError(err instanceof Error ? err.message : "Unable to remove attachment.");
     } finally {
       setRemoving(false);
+    }
+  }
+
+  async function handlePostComment(e: FormEvent) {
+    e.preventDefault();
+    const content = commentText.trim();
+    if (content.length < 1 || content.length > 2000) {
+      setCommentError("Comment must be between 1 and 2000 characters.");
+      return;
+    }
+    setCommentError("");
+    setPostingComment(true);
+    try {
+      const comment = await postComment(ticketId, content);
+      setTicket((prev) =>
+        prev ? { ...prev, publicComments: [...prev.publicComments, comment] } : prev
+      );
+      setCommentText("");
+    } catch (err) {
+      setCommentError(err instanceof Error ? err.message : "Unable to post comment.");
+    } finally {
+      setPostingComment(false);
+    }
+  }
+
+  async function handleMarkResolved() {
+    setResolvingError("");
+    setMarkingResolved(true);
+    try {
+      await markProblemAppearsResolved(ticketId);
+      setTicket((prev) => (prev ? { ...prev, requesterConfirmedResolved: true } : prev));
+    } catch (err) {
+      setResolvingError(err instanceof Error ? err.message : "Unable to update the ticket.");
+    } finally {
+      setMarkingResolved(false);
     }
   }
 
@@ -158,7 +197,27 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
 
       <div className="card mb-4">
         <div className="card-body">
-          <h1 className="h4 mb-3">Ticket {ticket.ticketNumber}</h1>
+          <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <h1 className="h4 mb-0">Ticket {ticket.ticketNumber}</h1>
+            {ticket.requesterConfirmedResolved ? (
+              <span className="badge bg-success-subtle text-success-emphasis">
+                You marked this as appearing resolved
+              </span>
+            ) : (
+              <button
+                className="btn btn-sm btn-outline-success"
+                onClick={handleMarkResolved}
+                disabled={markingResolved}
+              >
+                {markingResolved ? "Saving…" : "Problem Appears Resolved"}
+              </button>
+            )}
+          </div>
+          {resolvingError && (
+            <div className="alert alert-danger py-2 small" role="alert">
+              {resolvingError}
+            </div>
+          )}
           <div className="row g-3">
             <ReadOnlyField label="Ticket Date" value={new Date(ticket.createdAt).toLocaleString()} />
             <ReadOnlyField label="Requester" value={ticket.requester.name} />
@@ -182,6 +241,52 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
               {ticket.description}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="card mb-4">
+        <div className="card-body">
+          <h2 className="h5 mb-3">Public Comments</h2>
+
+          {ticket.publicComments.length === 0 ? (
+            <p className="text-muted">No comments yet.</p>
+          ) : (
+            <ul className="list-group mb-3">
+              {ticket.publicComments.map((c) => (
+                <li key={c.id} className="list-group-item">
+                  <div className="d-flex justify-content-between">
+                    <strong>{c.authorName}</strong>
+                    <span className="text-muted small">
+                      {new Date(c.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <div style={{ whiteSpace: "pre-wrap" }}>{c.content}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <form onSubmit={handlePostComment}>
+            <label className="form-label small fw-semibold" htmlFor="new-comment">
+              Add a comment
+            </label>
+            <textarea
+              id="new-comment"
+              className={`form-control ${commentError ? "is-invalid" : ""}`}
+              rows={3}
+              maxLength={2000}
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+            />
+            {commentError && <div className="invalid-feedback">{commentError}</div>}
+            <button
+              type="submit"
+              className="btn btn-sm btn-success mt-2"
+              disabled={postingComment}
+            >
+              {postingComment ? "Posting…" : "Post Comment"}
+            </button>
+          </form>
         </div>
       </div>
 

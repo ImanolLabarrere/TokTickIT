@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { useRequester } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
 
 export type AppView = "my-tickets" | "create-ticket";
 
@@ -10,7 +10,7 @@ interface AppShellProps {
 }
 
 export default function AppShell({ children, activeView, onNavigate }: AppShellProps) {
-  const { currentRequester, changeRequester } = useRequester();
+  const { user, logout } = useAuth();
 
   return (
     <div>
@@ -38,9 +38,9 @@ export default function AppShell({ children, activeView, onNavigate }: AppShellP
           </nav>
         </div>
         <div className="d-flex align-items-center gap-3">
-          <span>{currentRequester?.name}</span>
-          <button className="btn btn-sm btn-outline-light" onClick={changeRequester}>
-            Change Requester
+          <span>{user?.name}</span>
+          <button className="btn btn-sm btn-outline-light" onClick={() => logout()}>
+            Logout
           </button>
         </div>
       </header>

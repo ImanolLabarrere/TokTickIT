@@ -2,8 +2,6 @@ import { useState } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import Login from "./components/Login.js";
 import ChangePassword from "./components/ChangePassword.js";
-import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
-import RequesterSelection from "./components/RequesterSelection.js";
 import AppShell, { AppView } from "./components/AppShell.js";
 import CreateTicket from "./components/CreateTicket.js";
 import MyTickets from "./components/MyTickets.js";
@@ -14,16 +12,12 @@ type Screen =
   | { view: "create-ticket" }
   | { view: "ticket-detail"; ticketId: number };
 
-function LegacyLab2App() {
-  // TEMPORARY (Lab 3 Issue 2): Lab 2 screens still use the Development
-  // Requester selector under the hood. Issue 3 ("Requester regression")
-  // replaces this with the authenticated identity and removes the selector.
-  const { currentRequester } = useRequester();
+// Lab 3 Issue 3 — Requester regression: the Development Requester selector
+// is removed (labsheet §8.2). Identity now comes entirely from the
+// authenticated session (AuthGate below), so this no longer needs
+// RequesterProvider/RequesterSelection at all.
+function AuthenticatedApp() {
   const [screen, setScreen] = useState<Screen>({ view: "my-tickets" });
-
-  if (!currentRequester) {
-    return <RequesterSelection />;
-  }
 
   const navView: AppView = screen.view === "create-ticket" ? "create-ticket" : "my-tickets";
 
@@ -56,11 +50,7 @@ function AuthGate() {
     return <ChangePassword />;
   }
 
-  return (
-    <RequesterProvider>
-      <LegacyLab2App />
-    </RequesterProvider>
-  );
+  return <AuthenticatedApp />;
 }
 
 export default function App() {

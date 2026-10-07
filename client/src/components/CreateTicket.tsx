@@ -1,5 +1,4 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { useRequester } from "../context/RequesterContext.js";
 import {
   getCategories,
   getRelatedSystems,
@@ -17,8 +16,6 @@ const MAX_FILES = 5;
 type Status = "loadingRefs" | "refError" | "ready" | "submitting" | "success";
 
 export default function CreateTicket() {
-  const { currentRequester } = useRequester();
-
   const [status, setStatus] = useState<Status>("loadingRefs");
   const [categories, setCategories] = useState<Category[]>([]);
   const [relatedSystems, setRelatedSystems] = useState<RelatedSystem[]>([]);
@@ -78,24 +75,21 @@ export default function CreateTicket() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!currentRequester || status === "submitting") return;
+    if (status === "submitting") return;
 
     setFieldErrors({});
     setSubmitError("");
     setStatus("submitting");
 
     try {
-      const result = await createTicket(
-        {
-          categoryId: Number(categoryId),
-          relatedSystemId: Number(relatedSystemId),
-          summary,
-          description,
-          requestedPriority: priority as Priority,
-          attachments: files,
-        },
-        currentRequester.id
-      );
+      const result = await createTicket({
+        categoryId: Number(categoryId),
+        relatedSystemId: Number(relatedSystemId),
+        summary,
+        description,
+        requestedPriority: priority as Priority,
+        attachments: files,
+      });
       setTicketNumber(result.ticketNumber);
       setStatus("success");
     } catch (err) {

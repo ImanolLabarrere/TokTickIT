@@ -94,6 +94,6 @@ describe("TicketDetail", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /confirm removal/i }));
 
-    await waitFor(() => expect(removeSpy).toHaveBeenCalledWith(5, "Uploaded the wrong file.", 1));
+    await waitFor(() => expect(removeSpy).toHaveBeenCalledWith(5, "Uploaded the wrong file."));
   });
 });
