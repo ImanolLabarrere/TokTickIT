@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, FormEvent } from "react";
-import { useRequester } from "../context/RequesterContext.js";
 import { getTickets, getCategories, Category, TicketListItem, Priority } from "../api.js";
 
 type Status = "loading" | "ready" | "error";
@@ -26,8 +25,6 @@ interface MyTicketsProps {
 }
 
 export default function MyTickets({ onCreateTicket, onOpenTicket }: MyTicketsProps) {
-  const { currentRequester } = useRequester();
-
   const [status, setStatus] = useState<Status>("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [tickets, setTickets] = useState<TicketListItem[]>([]);
@@ -51,22 +48,18 @@ export default function MyTickets({ onCreateTicket, onOpenTicket }: MyTicketsPro
   }, []);
 
   const load = useCallback(async () => {
-    if (!currentRequester) return;
     setStatus("loading");
     setErrorMessage("");
     try {
-      const result = await getTickets(
-        {
-          search: search || undefined,
-          categoryId: categoryId ? Number(categoryId) : undefined,
-          requestedPriority: requestedPriority || undefined,
-          sortBy,
-          sortDir,
-          page,
-          pageSize: PAGE_SIZE,
-        },
-        currentRequester.id
-      );
+      const result = await getTickets({
+        search: search || undefined,
+        categoryId: categoryId ? Number(categoryId) : undefined,
+        requestedPriority: requestedPriority || undefined,
+        sortBy,
+        sortDir,
+        page,
+        pageSize: PAGE_SIZE,
+      });
       setTickets(result.data);
       setTotalItems(result.pagination.totalItems);
       setTotalPages(result.pagination.totalPages);
@@ -77,7 +70,7 @@ export default function MyTickets({ onCreateTicket, onOpenTicket }: MyTicketsPro
       );
       setStatus("error");
     }
-  }, [currentRequester, search, categoryId, requestedPriority, sortBy, sortDir, page]);
+  }, [search, categoryId, requestedPriority, sortBy, sortDir, page]);
 
   useEffect(() => {
     load();

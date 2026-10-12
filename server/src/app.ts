@@ -6,13 +6,20 @@ import { Prisma } from "@prisma/client";
 import { getPrisma } from "./prisma.js";
 import { requireRequester } from "./middleware/requireRequester.js";
 import { attachmentsUpload, MAX_ATTACHMENTS_PER_TICKET, UPLOAD_DIR } from "./upload.js";
-
+import cookieParser from "cookie-parser";
+import authRouter from "./routes/auth.js";
 // The Express app is exported separately from app.listen() (see index.ts) so
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors());          // already wired: lets the Vite dev server call this API
+app.use(cors({ origin: true, credentials: true })); // credentials:true so the session cookie round-trips
 app.use(express.json());
+app.use(cookieParser());
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 2 — Authentication foundation
+// ---------------------------------------------------------------------------
+app.use("/api/auth", authRouter);
 
 // ---------------------------------------------------------------------------
 // Issue 2 — API health check
@@ -50,8 +57,8 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 app.get("/api/requesters", async (_req: Request, res: Response) => {
   try {
-    const requesters = await getPrisma().requester.findMany({
-      where: { isActive: true },
+        const requesters = await getPrisma().user.findMany({
+      where: { isActive: true, role: "REQUESTER" },
       orderBy: { id: "asc" },
       select: { id: true, name: true, email: true },
     });
@@ -306,6 +313,10 @@ app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response
             removalReason: true,
           },
         },
+        publicComments: {
+          orderBy: { createdAt: "asc" },
+          include: { author: { select: { name: true } } },
+        },
       },
     });
 
@@ -313,7 +324,16 @@ app.get("/api/tickets/:id", requireRequester, async (req: Request, res: Response
       res.status(404).json({ error: "Ticket not found." });
       return;
     }
-    res.status(200).json(ticket);
+    res.status(200).json({
+      ...ticket,
+      publicComments: ticket.publicComments.map((c) => ({
+        id: c.id,
+        content: c.content,
+        authorId: c.authorId,
+        authorName: c.author.name,
+        createdAt: c.createdAt,
+      })),
+    });
   } catch (err) {
     console.error("GET /api/tickets/:id failed:", err);
     res.status(500).json({ error: "Unable to load ticket" });
@@ -466,5 +486,83 @@ app.patch("/api/attachments/:id/remove", requireRequester, async (req: Request, 
     res.status(500).json({ error: "Unable to remove attachment" });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 3 — Public Comments + "Problem Appears Resolved"
+// FR-05: a Requester can post a Public Comment on their own Ticket and flag
+// it as appearing resolved. api-spec.md: content 1-2000 chars trimmed,
+// non-blank; 404 (never 403) if the Ticket isn't the caller's, so ownership
+// failures look identical to "doesn't exist" (BR-07 safe-error rule).
+// ---------------------------------------------------------------------------
+app.post("/api/tickets/:id/comments", requireRequester, async (req: Request, res: Response) => {
+  const requesterId = req.requesterId as number;
+  const ticketId = Number(req.params.id);
+  const content = typeof req.body.content === "string" ? req.body.content.trim() : "";
+
+  if (!Number.isInteger(ticketId)) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  if (content.length < 1 || content.length > 2000) {
+    res.status(400).json({ error: "Comment must be between 1 and 2000 characters." });
+    return;
+  }
+
+  try {
+    const ticket = await getPrisma().ticket.findFirst({ where: { id: ticketId, requesterId } });
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found." });
+      return;
+    }
+
+    const comment = await getPrisma().publicComment.create({
+      data: { ticketId, authorId: requesterId, content },
+      include: { author: { select: { name: true } } },
+    });
+
+    res.status(201).json({
+      id: comment.id,
+      content: comment.content,
+      authorId: comment.authorId,
+      authorName: comment.author.name,
+      createdAt: comment.createdAt,
+    });
+  } catch (err) {
+    console.error("POST /api/tickets/:id/comments failed:", err);
+    res.status(500).json({ error: "Unable to post comment. Please try again." });
+  }
+});
+
+app.post(
+  "/api/tickets/:id/resolved-confirmation",
+  requireRequester,
+  async (req: Request, res: Response) => {
+    const requesterId = req.requesterId as number;
+    const ticketId = Number(req.params.id);
+
+    if (!Number.isInteger(ticketId)) {
+      res.status(404).json({ error: "Ticket not found." });
+      return;
+    }
+
+    try {
+      const ticket = await getPrisma().ticket.findFirst({ where: { id: ticketId, requesterId } });
+      if (!ticket) {
+        res.status(404).json({ error: "Ticket not found." });
+        return;
+      }
+
+      await getPrisma().ticket.update({
+        where: { id: ticketId },
+        data: { requesterConfirmedResolved: true },
+      });
+
+      res.status(200).json({ requesterConfirmedResolved: true });
+    } catch (err) {
+      console.error("POST /api/tickets/:id/resolved-confirmation failed:", err);
+      res.status(500).json({ error: "Unable to update the ticket. Please try again." });
+    }
+  }
+);
 
 export default app;
