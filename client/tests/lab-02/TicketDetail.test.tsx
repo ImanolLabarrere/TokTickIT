@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { RequesterProvider } from "../../src/context/RequesterContext.js";
 import TicketDetail from "../../src/components/TicketDetail.js";
 import * as api from "../../src/api.js";
-
-const STORAGE_KEY = "toktickit.selectedRequesterId";
 
 const SAMPLE_TICKET = {
   id: 1,
@@ -30,24 +27,18 @@ const SAMPLE_TICKET = {
       removalReason: null,
     },
   ],
+  // Lab 3 Issue 3 — Public Comments + "Problem Appears Resolved".
+  publicComments: [] as api.PublicComment[],
+  requesterConfirmedResolved: false,
 };
 
 function renderDetail(onBack = vi.fn()) {
-  sessionStorage.setItem(STORAGE_KEY, "1");
-  vi.spyOn(api, "getRequesters").mockResolvedValue([
-    { id: 1, name: "Jennifer Anderson", email: "jennifer.anderson@example.com" },
-  ]);
-  return render(
-    <RequesterProvider>
-      <TicketDetail ticketId={1} onBack={onBack} />
-    </RequesterProvider>
-  );
+  return render(<TicketDetail ticketId={1} onBack={onBack} />);
 }
 
 describe("TicketDetail", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    sessionStorage.clear();
   });
 
   it("renders the ticket header fields as read-only", async () => {
@@ -95,5 +86,40 @@ describe("TicketDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: /confirm removal/i }));
 
     await waitFor(() => expect(removeSpy).toHaveBeenCalledWith(5, "Uploaded the wrong file."));
+  });
+
+  it("posts a Public Comment and shows it in the list", async () => {
+    vi.spyOn(api, "getTicketDetail").mockResolvedValue(SAMPLE_TICKET);
+    const commentSpy = vi.spyOn(api, "postComment").mockResolvedValue({
+      id: 1,
+      content: "Still happening today.",
+      authorId: 1,
+      authorName: "Jennifer Anderson",
+      createdAt: "2026-09-02T09:00:00.000Z",
+    });
+
+    renderDetail();
+
+    await waitFor(() => expect(screen.getByText("Ticket TKT-2026-000001")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText(/add a comment/i), {
+      target: { value: "Still happening today." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /post comment/i }));
+
+    await waitFor(() => expect(commentSpy).toHaveBeenCalledWith(1, "Still happening today."));
+    expect(await screen.findByText("Still happening today.")).toBeInTheDocument();
+  });
+
+  it("marks the problem as appearing resolved", async () => {
+    vi.spyOn(api, "getTicketDetail").mockResolvedValue(SAMPLE_TICKET);
+    const resolveSpy = vi.spyOn(api, "markProblemAppearsResolved").mockResolvedValue(undefined);
+
+    renderDetail();
+
+    await waitFor(() => expect(screen.getByText("Ticket TKT-2026-000001")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /problem appears resolved/i }));
+
+    await waitFor(() => expect(resolveSpy).toHaveBeenCalledWith(1));
+    expect(await screen.findByText(/you marked this as appearing resolved/i)).toBeInTheDocument();
   });
 });
