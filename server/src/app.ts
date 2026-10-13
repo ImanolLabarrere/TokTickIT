@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, RequestHandler } from "express";
 import cors from "cors";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,6 +8,7 @@ import { requireRequester } from "./middleware/requireRequester.js";
 import { attachmentsUpload, MAX_ATTACHMENTS_PER_TICKET, UPLOAD_DIR } from "./upload.js";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.js";
+import { requireAuth, blockIfMustChangePassword, requireRole } from "./middleware/auth.js";
 // The Express app is exported separately from app.listen() (see index.ts) so
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
@@ -158,6 +159,7 @@ app.post(
             summary,
             description,
             requestedPriority,
+            itPriority: requestedPriority, // spec section 9: IT Priority starts as a copy
           },
         });
 
@@ -204,7 +206,16 @@ app.post(
 // rather than erroring.
 // ---------------------------------------------------------------------------
 const SORTABLE_FIELDS = new Set(["ticketNumber", "createdAt", "updatedAt"]);
-const STATUSES = ["NEW"] as const;
+const STATUSES = [
+  "NEW",
+  "OPEN",
+  "IN_PROGRESS",
+  "WAITING_FOR_REQUESTER",
+  "RESOLVED",
+  "CLOSED",
+  "REOPENED",
+  "CANCELLED",
+] as const;
 
 app.get("/api/tickets", requireRequester, async (req: Request, res: Response) => {
   const requesterId = req.requesterId as number;
@@ -564,5 +575,128 @@ app.post(
     }
   }
 );
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 4 — IT Staff Ticket Queue (FR-06)
+// Covers ALL Tickets (not scoped to one Requester). Only role IT_STAFF may
+// call these routes; Requesters and Administrators get 403 (authorization
+// matrix, specification.md section 6). Same clamping/defaults pattern as the
+// Requester list above (BR-13): invalid params fall back, never error.
+// ---------------------------------------------------------------------------
+const requireStaff: RequestHandler[] = [requireAuth, blockIfMustChangePassword, requireRole("IT_STAFF")];
+const STAFF_SORTABLE_FIELDS = new Set(["createdAt", "updatedAt", "itPriority"]);
+
+app.get("/api/staff/tickets", requireStaff, async (req: Request, res: Response) => {
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const categoryId = Number(req.query.categoryId);
+  const requestedPriority = req.query.requestedPriority;
+  const itPriority = req.query.itPriority;
+  const currentStatus = req.query.currentStatus;
+  const ownerRaw = req.query.ownerId;
+
+  const sortByRaw = typeof req.query.sortBy === "string" ? req.query.sortBy : "";
+  const sortBy = STAFF_SORTABLE_FIELDS.has(sortByRaw) ? sortByRaw : "createdAt";
+  const sortDirRaw = typeof req.query.sortDir === "string" ? req.query.sortDir.toLowerCase() : "";
+  const sortDir: "asc" | "desc" = sortDirRaw === "asc" ? "asc" : "desc";
+
+  const pageRaw = Number(req.query.page);
+  const page = Number.isInteger(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
+  const pageSizeRaw = Number(req.query.pageSize);
+  const pageSize =
+    Number.isInteger(pageSizeRaw) && pageSizeRaw >= 1 && pageSizeRaw <= 50 ? pageSizeRaw : 10;
+
+  const where: Prisma.TicketWhereInput = {};
+
+  if (search) {
+    where.OR = [
+      { ticketNumber: { contains: search, mode: "insensitive" } },
+      { summary: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (Number.isInteger(categoryId) && categoryId > 0) {
+    where.categoryId = categoryId;
+  }
+  if (typeof requestedPriority === "string" && PRIORITIES.includes(requestedPriority as (typeof PRIORITIES)[number])) {
+    where.requestedPriority = requestedPriority as Prisma.TicketWhereInput["requestedPriority"];
+  }
+  if (typeof itPriority === "string" && PRIORITIES.includes(itPriority as (typeof PRIORITIES)[number])) {
+    where.itPriority = itPriority as Prisma.TicketWhereInput["itPriority"];
+  }
+  if (typeof currentStatus === "string" && STATUSES.includes(currentStatus as (typeof STATUSES)[number])) {
+    where.currentStatus = currentStatus as Prisma.TicketWhereInput["currentStatus"];
+  }
+  if (ownerRaw === "unassigned") {
+    where.ownerId = null;
+  } else if (typeof ownerRaw === "string" && ownerRaw !== "" && Number.isInteger(Number(ownerRaw))) {
+    where.ownerId = Number(ownerRaw);
+  }
+
+  try {
+    const [rows, totalItems] = await Promise.all([
+      getPrisma().ticket.findMany({
+        where,
+        orderBy: [{ [sortBy]: sortDir }, { id: "desc" }] as Prisma.TicketOrderByWithRelationInput[],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          requestedPriority: true,
+          itPriority: true,
+          currentStatus: true,
+          ownerId: true,
+          createdAt: true,
+          updatedAt: true,
+          requester: { select: { name: true } },
+          category: { select: { name: true } },
+          owner: { select: { name: true } },
+        },
+      }),
+      getPrisma().ticket.count({ where }),
+    ]);
+
+    res.status(200).json({
+      data: rows.map((t) => ({
+        id: t.id,
+        ticketNumber: t.ticketNumber,
+        summary: t.summary,
+        requesterName: t.requester.name,
+        categoryName: t.category.name,
+        requestedPriority: t.requestedPriority,
+        itPriority: t.itPriority,
+        currentStatus: t.currentStatus,
+        ownerId: t.ownerId,
+        ownerName: t.owner?.name ?? null,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
+      },
+    });
+  } catch (err) {
+    console.error("GET /api/staff/tickets failed:", err);
+    res.status(500).json({ error: "Unable to load the queue" });
+  }
+});
+
+// Feeds the queue's Owner filter (and, in Issue 5, the Reassign picker).
+app.get("/api/staff/owners", requireStaff, async (_req: Request, res: Response) => {
+  try {
+    const owners = await getPrisma().user.findMany({
+      where: { isActive: true, role: "IT_STAFF" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(owners);
+  } catch (err) {
+    console.error("GET /api/staff/owners failed:", err);
+    res.status(500).json({ error: "Unable to load staff members" });
+  }
+});
 
 export default app;

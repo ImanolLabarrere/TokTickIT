@@ -36,7 +36,9 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByText(/change your password/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /change your password/i })).toBeInTheDocument()
+    );
   });
 
   it("renders My Tickets directly once authenticated (no Requester selector)", async () => {
@@ -55,7 +57,9 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByText(/my tickets/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /my tickets/i })).toBeInTheDocument()
+    );
     expect(screen.getByText("Jennifer Anderson")).toBeInTheDocument();
     expect(screen.queryByText(/select development requester/i)).not.toBeInTheDocument();
   });

@@ -41,7 +41,8 @@ model User {
   passwordHash       String
   mustChangePassword Boolean  @default(true)
   updatedAt          DateTime @updatedAt
-  tickets   Ticket[]
+  tickets   Ticket[] @relation("TicketRequester")
+  ownedTickets Ticket[] @relation("TicketOwner")
   publicComments PublicComment[]
 }
 
@@ -64,13 +65,24 @@ enum Priority {
 
 enum TicketStatus {
   NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_REQUESTER
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
 }
 
 model Ticket {
   id                Int           @id @default(autoincrement())
   ticketNumber      String?       @unique
   requesterId       Int
-  requester         User          @relation(fields: [requesterId], references: [id])
+  requester         User          @relation("TicketRequester", fields: [requesterId], references: [id])
+  // Lab 3 Issue 4 — ownership + IT Priority (spec section 9)
+  ownerId           Int?
+  owner             User?         @relation("TicketOwner", fields: [ownerId], references: [id])
+  itPriority        Priority      @default(MEDIUM)
   categoryId        Int
   category          Category      @relation(fields: [categoryId], references: [id])
   relatedSystemId   Int
@@ -87,6 +99,8 @@ model Ticket {
 
   @@index([requesterId])
   @@index([createdAt])
+  @@index([ownerId])
+  @@index([currentStatus])
 }
 
 // ---------------------------------------------------------------------------

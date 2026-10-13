@@ -86,6 +86,64 @@ async function main() {
     });
   }
 
+  // Lab 3 Issue 4 (spec section 5.3): realistic Tickets spread across
+  // Requesters, statuses, priorities and assigned/unassigned ownership, so the
+  // IT Staff queue has real data. Idempotent: a demo ticket is skipped when one
+  // with the same summary already exists.
+  const DEMO_TICKETS = [
+    { summary: "Laptop battery drains quickly", category: "Hardware", system: "Corporate Laptop", requester: "jennifer.anderson@example.com", req: "MEDIUM", it: "MEDIUM", status: "IN_PROGRESS", owner: "alex.thompson@tiktockit.com", daysAgo: 9 },
+    { summary: "Cannot connect to VPN from home", category: "Network", system: "VPN", requester: "michael.brown@example.com", req: "HIGH", it: "HIGH", status: "OPEN", owner: "priya.nair@tiktockit.com", daysAgo: 8 },
+    { summary: "Email not syncing on mobile", category: "Software", system: "Email", requester: "sarah.johnson@example.com", req: "MEDIUM", it: "MEDIUM", status: "IN_PROGRESS", owner: "wattana.srisuk@tiktockit.com", daysAgo: 7 },
+    { summary: "New employee account setup", category: "Account and Access", system: "Email", requester: "david.lee@example.com", req: "LOW", it: "LOW", status: "RESOLVED", owner: "alex.thompson@tiktockit.com", daysAgo: 12 },
+    { summary: "Printer keeps showing offline", category: "Hardware", system: "Printer", requester: "emma.wilson@example.com", req: "MEDIUM", it: "LOW", status: "OPEN", owner: "priya.nair@tiktockit.com", daysAgo: 6 },
+    { summary: "Request access to Grade Submission App", category: "Account and Access", system: "Grade Submission App", requester: "jennifer.anderson@example.com", req: "LOW", it: "LOW", status: "WAITING_FOR_REQUESTER", owner: "wattana.srisuk@tiktockit.com", daysAgo: 5 },
+    { summary: "Campus Wi-Fi drops in the library", category: "Network", system: "Campus Wi-Fi", requester: "michael.brown@example.com", req: "HIGH", it: "MEDIUM", status: "NEW", owner: null, daysAgo: 1 },
+    { summary: "LEB2 App shows a blank page after login", category: "Software", system: "LEB2 App", requester: "sarah.johnson@example.com", req: "HIGH", it: "HIGH", status: "NEW", owner: null, daysAgo: 2 },
+    { summary: "Docking station not detected", category: "Hardware", system: "Corporate Laptop", requester: "david.lee@example.com", req: "MEDIUM", it: "MEDIUM", status: "CLOSED", owner: "alex.thompson@tiktockit.com", daysAgo: 20 },
+    { summary: "Forgot password for the grading portal", category: "Account and Access", system: "Grade Submission App", requester: "emma.wilson@example.com", req: "LOW", it: "LOW", status: "NEW", owner: null, daysAgo: 0 },
+    { summary: "Outlook freezing intermittently", category: "Software", system: "Email", requester: "jennifer.anderson@example.com", req: "HIGH", it: "MEDIUM", status: "REOPENED", owner: "priya.nair@tiktockit.com", daysAgo: 15 },
+    { summary: "VPN certificate expired", category: "Network", system: "VPN", requester: "david.lee@example.com", req: "MEDIUM", it: "HIGH", status: "OPEN", owner: "wattana.srisuk@tiktockit.com", daysAgo: 3 },
+    { summary: "Duplicate request: printer toner", category: "Hardware", system: "Printer", requester: "emma.wilson@example.com", req: "LOW", it: "LOW", status: "CANCELLED", owner: null, daysAgo: 11 },
+    { summary: "Second monitor not detected", category: "Hardware", system: "Corporate Laptop", requester: "sarah.johnson@example.com", req: "MEDIUM", it: "MEDIUM", status: "NEW", owner: null, daysAgo: 0 },
+  ] as const;
+
+  let ticketsCreated = 0;
+  for (const t of DEMO_TICKETS) {
+    const existing = await prisma.ticket.findFirst({ where: { summary: t.summary } });
+    if (existing) continue;
+
+    const category = await prisma.category.findUnique({ where: { name: t.category } });
+    const system = await prisma.relatedSystem.findUnique({ where: { name: t.system } });
+    const requester = await prisma.user.findUnique({ where: { email: t.requester } });
+    const owner = t.owner ? await prisma.user.findUnique({ where: { email: t.owner } }) : null;
+    if (!category || !system || !requester) continue;
+
+    const createdAt = new Date(Date.now() - t.daysAgo * 24 * 60 * 60 * 1000);
+    const created = await prisma.ticket.create({
+      data: {
+        requesterId: requester.id,
+        categoryId: category.id,
+        relatedSystemId: system.id,
+        summary: t.summary,
+        description: `${t.summary}. Demo ticket created by the seed script for the IT Staff queue.`,
+        requestedPriority: t.req,
+        itPriority: t.it,
+        currentStatus: t.status,
+        ownerId: owner ? owner.id : null,
+        createdAt,
+      },
+    });
+    await prisma.ticket.update({
+      where: { id: created.id },
+      data: {
+        ticketNumber: `TKT-${createdAt.getFullYear()}-${String(created.id).padStart(6, "0")}`,
+        updatedAt: new Date(createdAt.getTime() + 2 * 60 * 60 * 1000),
+      },
+    });
+    ticketsCreated++;
+  }
+  console.log(`Demo tickets: ${ticketsCreated} created (${DEMO_TICKETS.length - ticketsCreated} already existed).`);
+
   console.log(
     `Seeded ${CATEGORY_NAMES.length} categories, ${RELATED_SYSTEM_NAMES.length} related systems, ` +
       `and ${allUsers.length} users (${REQUESTERS.length} Requesters, ${IT_STAFF.length} IT Staff, ` +

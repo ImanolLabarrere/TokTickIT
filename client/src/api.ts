@@ -125,7 +125,15 @@ export async function createTicket(payload: CreateTicketPayload): Promise<Create
   return res.json();
 }
 // Lab 2 Issue 4 — My Tickets list (search/filter/sort/pagination).
-export type TicketStatusValue = "NEW";
+export type TicketStatusValue =
+  | "NEW"
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "WAITING_FOR_REQUESTER"
+  | "RESOLVED"
+  | "CLOSED"
+  | "REOPENED"
+  | "CANCELLED";
 
 export interface TicketListItem {
   id: number;
@@ -444,4 +452,82 @@ export async function markProblemAppearsResolved(ticketId: number): Promise<void
     const body = await res.json().catch(() => ({ error: "Unable to update the ticket." }));
     throw new Error(body.error ?? "Unable to update the ticket.");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 4 — IT Staff Ticket Queue
+// ---------------------------------------------------------------------------
+export interface StaffTicketListItem {
+  id: number;
+  ticketNumber: string | null;
+  summary: string;
+  requesterName: string;
+  categoryName: string;
+  requestedPriority: Priority;
+  itPriority: Priority;
+  currentStatus: TicketStatusValue;
+  ownerId: number | null;
+  ownerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StaffTicketListResponse {
+  data: StaffTicketListItem[];
+  pagination: TicketListPagination;
+}
+
+export interface StaffTicketListParams {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: Priority;
+  itPriority?: Priority;
+  currentStatus?: TicketStatusValue;
+  ownerId?: "unassigned" | number;
+  sortBy?: "createdAt" | "updatedAt" | "itPriority";
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface StaffOwner {
+  id: number;
+  name: string;
+}
+
+export async function getStaffTickets(params: StaffTicketListParams): Promise<StaffTicketListResponse> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.categoryId) query.set("categoryId", String(params.categoryId));
+  if (params.requestedPriority) query.set("requestedPriority", params.requestedPriority);
+  if (params.itPriority) query.set("itPriority", params.itPriority);
+  if (params.currentStatus) query.set("currentStatus", params.currentStatus);
+  if (params.ownerId !== undefined) query.set("ownerId", String(params.ownerId));
+  if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.sortDir) query.set("sortDir", params.sortDir);
+  if (params.page) query.set("page", String(params.page));
+  if (params.pageSize) query.set("pageSize", String(params.pageSize));
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, { credentials: "include" });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "Unable to load the queue." }));
+    throw new Error(body.error ?? "Unable to load the queue.");
+  }
+  return res.json();
+}
+
+export async function getStaffOwners(): Promise<StaffOwner[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/staff/owners`, { credentials: "include" });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) throw new Error("Unable to load staff members.");
+  return res.json();
 }
