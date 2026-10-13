@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
+import { createLoggedInRequester } from "../helpers/auth.js";
 
 // Requires the DB to be migrated and seeded first (see prisma/seed.ts).
-let requesterId: number;
+// Lab 3 Issue 3: identity now comes from an authenticated session (cookie),
+// not the retired X-Requester-Id header — see server/tests/helpers/auth.ts.
+let agent: ReturnType<typeof request.agent>;
 let categoryId: number;
 let relatedSystemId: number;
 
 beforeAll(async () => {
-  const requesters = await request(app).get("/api/requesters");
-  requesterId = requesters.body[0].id;
+  ({ agent } = await createLoggedInRequester("create-ticket-tests@example.com"));
 
   const categories = await request(app).get("/api/categories");
   categoryId = categories.body[0].id;
@@ -31,37 +33,22 @@ function validPayload() {
 describe("POST /api/tickets", () => {
   // AC-01
   it("creates a ticket and returns a backend-generated ticket number", async () => {
-    const res = await request(app)
-      .post("/api/tickets")
-      .set("X-Requester-Id", String(requesterId))
-      .field(validPayload());
+    const res = await agent.post("/api/tickets").field(validPayload());
 
     expect(res.status).toBe(201);
     expect(res.body.ticketNumber).toMatch(/^TKT-\d{4}-\d{6}$/);
     expect(res.body.currentStatus).toBe("NEW");
   });
 
-  // BR-19
-  it("rejects a request with no X-Requester-Id header", async () => {
+  // BR-03 — ownership now comes from the session, not client input.
+  it("rejects an unauthenticated request", async () => {
     const res = await request(app).post("/api/tickets").field(validPayload());
-    expect(res.status).toBe(400);
-  });
-
-  // BR-19
-  it("rejects an unknown Requester id", async () => {
-    const res = await request(app)
-      .post("/api/tickets")
-      .set("X-Requester-Id", "999999")
-      .field(validPayload());
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 
   // AC-04 / BR-07
   it("rejects a missing Summary with a field-level error", async () => {
-    const res = await request(app)
-      .post("/api/tickets")
-      .set("X-Requester-Id", String(requesterId))
-      .field({ ...validPayload(), summary: "" });
+    const res = await agent.post("/api/tickets").field({ ...validPayload(), summary: "" });
 
     expect(res.status).toBe(400);
     expect(res.body.fields.summary).toBeDefined();
@@ -69,10 +56,7 @@ describe("POST /api/tickets", () => {
 
   // BR-10
   it("rejects an unknown categoryId", async () => {
-    const res = await request(app)
-      .post("/api/tickets")
-      .set("X-Requester-Id", String(requesterId))
-      .field({ ...validPayload(), categoryId: "999999" });
+    const res = await agent.post("/api/tickets").field({ ...validPayload(), categoryId: "999999" });
 
     expect(res.status).toBe(400);
     expect(res.body.fields.categoryId).toBeDefined();
@@ -80,9 +64,8 @@ describe("POST /api/tickets", () => {
 
   // AC-11
   it("accepts a valid PNG attachment", async () => {
-    const res = await request(app)
+    const res = await agent
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requesterId))
       .field(validPayload())
       .attach("attachments", Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
         filename: "screenshot.png",
@@ -94,9 +77,8 @@ describe("POST /api/tickets", () => {
 
   // AC-12 / BR-14
   it("rejects a disallowed attachment type", async () => {
-    const res = await request(app)
+    const res = await agent
       .post("/api/tickets")
-      .set("X-Requester-Id", String(requesterId))
       .field(validPayload())
       .attach("attachments", Buffer.from("not an image"), {
         filename: "malware.exe",

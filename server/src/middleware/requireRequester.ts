@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import { getPrisma } from "../prisma.js";
+import { requireAuth, blockIfMustChangePassword } from "./auth.js";
 
-// Extend Express's Request type so downstream handlers get requesterId for free.
+// Extend Express's Request type so downstream handlers get requesterId for free
+// (unchanged from Lab 2 — every existing handler keeps working as-is).
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
@@ -11,29 +12,25 @@ declare global {
   }
 }
 
-// Lab 2 — BR-19: every Requester-scoped endpoint enforces ownership server-side.
-// There is no real authentication yet (BR-03), so the client sends the selected
-// Requester's id in the X-Requester-Id header. This middleware validates that id
-// against the database (must exist AND be active) before any handler runs.
-export async function requireRequester(req: Request, res: Response, next: NextFunction) {
-  const header = req.header("X-Requester-Id");
-  const id = header ? Number(header) : NaN;
-
-  if (!header || !Number.isInteger(id) || id <= 0) {
-    res.status(400).json({ error: "Missing or invalid X-Requester-Id header" });
-    return;
-  }
-
-  try {
-    const requester = await getPrisma().user.findUnique({ where: { id } });
-    if (!requester || !requester.isActive || requester.role !== "REQUESTER") {
-      res.status(400).json({ error: "Unknown or inactive Requester" });
-      return;
-    }
-    req.requesterId = id;
-    next();
-  } catch (err) {
-    console.error("requireRequester failed:", err);
-    res.status(500).json({ error: "Unable to verify Requester" });
-  }
+// Lab 3 Issue 3 — BR-03: ownership now comes from the authenticated session
+// (never from client-supplied input). This composes requireAuth (valid
+// session + active-user check, re-verified on every request per BR-02/BR-06)
+// with a REQUESTER-role check, and still sets req.requesterId so every
+// existing Lab 2 handler (`req.requesterId as number`) needs zero changes.
+//
+// api-spec.md: "The X-Requester-Id header is removed; the authenticated
+// session's user id is used instead." A user who still has
+// mustChangePassword=true is blocked here too (they must finish the forced
+// password change before touching any Ticket data).
+export function requireRequester(req: Request, res: Response, next: NextFunction) {
+  requireAuth(req, res, () => {
+    blockIfMustChangePassword(req, res, () => {
+      if (!req.authUser || req.authUser.role !== "REQUESTER") {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+      req.requesterId = req.authUser.id;
+      next();
+    });
+  });
 }

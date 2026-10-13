@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
+import { createLoggedInRequester } from "../helpers/auth.js";
 
 // Requires the DB to be migrated and seeded first (see prisma/seed.ts).
-let requesterId: number;
-let otherRequesterId: number;
+let agent: ReturnType<typeof request.agent>;
+let otherAgent: ReturnType<typeof request.agent>;
 let categoryId: number;
 let relatedSystemId: number;
 
 beforeAll(async () => {
-  const requesters = await request(app).get("/api/requesters");
-  requesterId = requesters.body[0].id;
-  otherRequesterId = requesters.body[1].id;
+  ({ agent } = await createLoggedInRequester("my-tickets-tests-a@example.com"));
+  ({ agent: otherAgent } = await createLoggedInRequester("my-tickets-tests-b@example.com"));
 
   const categories = await request(app).get("/api/categories");
   categoryId = categories.body[0].id;
@@ -21,33 +21,34 @@ beforeAll(async () => {
 
   const tag = `MYTICKETS-${Date.now()}`;
 
-  async function createTicket(requester: number, summary: string, priority: string) {
-    return request(app)
-      .post("/api/tickets")
-      .set("X-Requester-Id", String(requester))
-      .field({
-        categoryId: String(categoryId),
-        relatedSystemId: String(relatedSystemId),
-        summary,
-        description: "Seeded for GET /api/tickets tests.",
-        requestedPriority: priority,
-      });
+  async function createTicket(
+    asAgent: ReturnType<typeof request.agent>,
+    summary: string,
+    priority: string
+  ) {
+    return asAgent.post("/api/tickets").field({
+      categoryId: String(categoryId),
+      relatedSystemId: String(relatedSystemId),
+      summary,
+      description: "Seeded for GET /api/tickets tests.",
+      requestedPriority: priority,
+    });
   }
 
-  await createTicket(requesterId, `${tag} laptop battery drains quickly`, "MEDIUM");
-  await createTicket(requesterId, `${tag} VPN connection drops`, "HIGH");
-  await createTicket(requesterId, `${tag} printer offline`, "LOW");
-  await createTicket(otherRequesterId, `${tag} a different requester's ticket`, "LOW");
+  await createTicket(agent, `${tag} laptop battery drains quickly`, "MEDIUM");
+  await createTicket(agent, `${tag} VPN connection drops`, "HIGH");
+  await createTicket(agent, `${tag} printer offline`, "LOW");
+  await createTicket(otherAgent, `${tag} a different requester's ticket`, "LOW");
 });
 
 describe("GET /api/tickets", () => {
-  it("rejects a request with no X-Requester-Id header", async () => {
+  it("rejects an unauthenticated request", async () => {
     const res = await request(app).get("/api/tickets");
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(401);
   });
 
   it("only returns the current Requester's own tickets", async () => {
-    const res = await request(app).get("/api/tickets").set("X-Requester-Id", String(requesterId));
+    const res = await agent.get("/api/tickets");
 
     expect(res.status).toBe(200);
     const summaries = res.body.data.map((t: { summary: string }) => t.summary);
@@ -55,10 +56,7 @@ describe("GET /api/tickets", () => {
   });
 
   it("supports search by summary", async () => {
-    const res = await request(app)
-      .get("/api/tickets")
-      .query({ search: "VPN connection drops" })
-      .set("X-Requester-Id", String(requesterId));
+    const res = await agent.get("/api/tickets").query({ search: "VPN connection drops" });
 
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
@@ -68,10 +66,7 @@ describe("GET /api/tickets", () => {
   });
 
   it("supports filtering by requestedPriority", async () => {
-    const res = await request(app)
-      .get("/api/tickets")
-      .query({ requestedPriority: "HIGH", pageSize: 50 })
-      .set("X-Requester-Id", String(requesterId));
+    const res = await agent.get("/api/tickets").query({ requestedPriority: "HIGH", pageSize: 50 });
 
     expect(res.status).toBe(200);
     expect(
@@ -80,10 +75,9 @@ describe("GET /api/tickets", () => {
   });
 
   it("supports sorting by ticketNumber ascending", async () => {
-    const res = await request(app)
+    const res = await agent
       .get("/api/tickets")
-      .query({ sortBy: "ticketNumber", sortDir: "asc", pageSize: 50 })
-      .set("X-Requester-Id", String(requesterId));
+      .query({ sortBy: "ticketNumber", sortDir: "asc", pageSize: 50 });
 
     expect(res.status).toBe(200);
     const numbers = res.body.data.map((t: { ticketNumber: string }) => t.ticketNumber);
@@ -91,10 +85,7 @@ describe("GET /api/tickets", () => {
   });
 
   it("falls back to default paging on invalid page/pageSize", async () => {
-    const res = await request(app)
-      .get("/api/tickets")
-      .query({ page: "-5", pageSize: "9999" })
-      .set("X-Requester-Id", String(requesterId));
+    const res = await agent.get("/api/tickets").query({ page: "-5", pageSize: "9999" });
 
     expect(res.status).toBe(200);
     expect(res.body.pagination.page).toBe(1);
@@ -102,10 +93,7 @@ describe("GET /api/tickets", () => {
   });
 
   it("returns an empty array and zero totalItems when a filter matches nothing", async () => {
-    const res = await request(app)
-      .get("/api/tickets")
-      .query({ search: "no-such-ticket-summary-xyz-123" })
-      .set("X-Requester-Id", String(requesterId));
+    const res = await agent.get("/api/tickets").query({ search: "no-such-ticket-summary-xyz-123" });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);

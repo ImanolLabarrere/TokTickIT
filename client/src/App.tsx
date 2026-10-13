@@ -2,33 +2,34 @@ import { useState } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import Login from "./components/Login.js";
 import ChangePassword from "./components/ChangePassword.js";
-import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
-import RequesterSelection from "./components/RequesterSelection.js";
-import AppShell, { AppView } from "./components/AppShell.js";
+import AppShell, { AppView, NavItem } from "./components/AppShell.js";
 import CreateTicket from "./components/CreateTicket.js";
 import MyTickets from "./components/MyTickets.js";
 import TicketDetail from "./components/TicketDetail.js";
+import StaffQueue from "./components/StaffQueue.js";
 
-type Screen =
+type RequesterScreen =
   | { view: "my-tickets" }
   | { view: "create-ticket" }
   | { view: "ticket-detail"; ticketId: number };
 
-function LegacyLab2App() {
-  // TEMPORARY (Lab 3 Issue 2): Lab 2 screens still use the Development
-  // Requester selector under the hood. Issue 3 ("Requester regression")
-  // replaces this with the authenticated identity and removes the selector.
-  const { currentRequester } = useRequester();
-  const [screen, setScreen] = useState<Screen>({ view: "my-tickets" });
+const REQUESTER_NAV: NavItem[] = [
+  { view: "my-tickets", label: "My Tickets" },
+  { view: "create-ticket", label: "Create Ticket" },
+];
+const STAFF_NAV: NavItem[] = [{ view: "my-queue", label: "My Queue" }];
+const ADMIN_NAV: NavItem[] = [{ view: "admin", label: "Admin" }];
 
-  if (!currentRequester) {
-    return <RequesterSelection />;
-  }
-
+function RequesterApp() {
+  const [screen, setScreen] = useState<RequesterScreen>({ view: "my-tickets" });
   const navView: AppView = screen.view === "create-ticket" ? "create-ticket" : "my-tickets";
 
   return (
-    <AppShell activeView={navView} onNavigate={(view) => setScreen({ view })}>
+    <AppShell
+      navItems={REQUESTER_NAV}
+      activeView={navView}
+      onNavigate={(view) => setScreen(view === "create-ticket" ? { view } : { view: "my-tickets" })}
+    >
       {screen.view === "my-tickets" && (
         <MyTickets
           onCreateTicket={() => setScreen({ view: "create-ticket" })}
@@ -39,6 +40,42 @@ function LegacyLab2App() {
       {screen.view === "ticket-detail" && (
         <TicketDetail ticketId={screen.ticketId} onBack={() => setScreen({ view: "my-tickets" })} />
       )}
+    </AppShell>
+  );
+}
+
+// Lab 3 Issue 4: the queue is live; the full IT Staff Ticket Detail screen
+// (claim/assign, IT Priority, status, Internal Notes) arrives with Issue 5, so
+// "Open" lands on a clearly-labelled placeholder for now.
+function StaffApp() {
+  const [openTicketId, setOpenTicketId] = useState<number | null>(null);
+
+  return (
+    <AppShell navItems={STAFF_NAV} activeView="my-queue" onNavigate={() => setOpenTicketId(null)}>
+      {openTicketId === null ? (
+        <StaffQueue onOpenTicket={setOpenTicketId} />
+      ) : (
+        <div>
+          <button className="btn btn-sm btn-outline-secondary mb-3" onClick={() => setOpenTicketId(null)}>
+            ← Back to Queue
+          </button>
+          <h1 className="h4">IT Staff Ticket Detail</h1>
+          <p className="text-muted">
+            Ticket #{openTicketId} — the IT Staff Ticket Detail screen is delivered in the next Issue.
+          </p>
+        </div>
+      )}
+    </AppShell>
+  );
+}
+
+// User Management is delivered in Issue 6; until then an Administrator lands
+// on a placeholder (and, per the authorization matrix, has no ticket access).
+function AdminApp() {
+  return (
+    <AppShell navItems={ADMIN_NAV} activeView="admin" onNavigate={() => undefined}>
+      <h1 className="h4">User Management</h1>
+      <p className="text-muted">The Administrator User Management screen is delivered in a later Issue.</p>
     </AppShell>
   );
 }
@@ -55,12 +92,13 @@ function AuthGate() {
   if (user.mustChangePassword) {
     return <ChangePassword />;
   }
-
-  return (
-    <RequesterProvider>
-      <LegacyLab2App />
-    </RequesterProvider>
-  );
+  if (user.role === "IT_STAFF") {
+    return <StaffApp />;
+  }
+  if (user.role === "ADMINISTRATOR") {
+    return <AdminApp />;
+  }
+  return <RequesterApp />;
 }
 
 export default function App() {

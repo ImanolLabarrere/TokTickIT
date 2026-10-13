@@ -1,18 +1,17 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
+import { createLoggedInRequester } from "../helpers/auth.js";
 
-// Requires the DB to be migrated and seeded first (see prisma/seed.ts).
-let requesterId: number;
-let otherRequesterId: number;
+let agent: ReturnType<typeof request.agent>;
+let otherAgent: ReturnType<typeof request.agent>;
 let categoryId: number;
 let relatedSystemId: number;
 let ticketId: number;
 
 beforeAll(async () => {
-  const requesters = await request(app).get("/api/requesters");
-  requesterId = requesters.body[0].id;
-  otherRequesterId = requesters.body[1].id;
+  ({ agent } = await createLoggedInRequester("attachments-tests-a@example.com"));
+  ({ agent: otherAgent } = await createLoggedInRequester("attachments-tests-b@example.com"));
 
   const categories = await request(app).get("/api/categories");
   categoryId = categories.body[0].id;
@@ -20,16 +19,13 @@ beforeAll(async () => {
   const relatedSystems = await request(app).get("/api/related-systems");
   relatedSystemId = relatedSystems.body[0].id;
 
-  const created = await request(app)
-    .post("/api/tickets")
-    .set("X-Requester-Id", String(requesterId))
-    .field({
-      categoryId: String(categoryId),
-      relatedSystemId: String(relatedSystemId),
-      summary: "Attachment lifecycle test",
-      description: "Seeded for attachment lifecycle tests.",
-      requestedPriority: "LOW",
-    });
+  const created = await agent.post("/api/tickets").field({
+    categoryId: String(categoryId),
+    relatedSystemId: String(relatedSystemId),
+    summary: "Attachment lifecycle test",
+    description: "Seeded for attachment lifecycle tests.",
+    requestedPriority: "LOW",
+  });
   ticketId = created.body.id;
 });
 
@@ -39,9 +35,8 @@ function png() {
 
 describe("POST /api/tickets/:id/attachments", () => {
   it("adds a valid attachment to an existing ticket", async () => {
-    const res = await request(app)
+    const res = await agent
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", String(requesterId))
       .attach("attachments", png(), { filename: "extra.png", contentType: "image/png" });
 
     expect(res.status).toBe(201);
@@ -49,9 +44,8 @@ describe("POST /api/tickets/:id/attachments", () => {
   });
 
   it("rejects adding an attachment to a Ticket owned by another Requester", async () => {
-    const res = await request(app)
+    const res = await otherAgent
       .post(`/api/tickets/${ticketId}/attachments`)
-      .set("X-Requester-Id", String(otherRequesterId))
       .attach("attachments", png(), { filename: "extra.png", contentType: "image/png" });
 
     expect(res.status).toBe(404);
@@ -62,33 +56,23 @@ describe("attachment download and soft removal", () => {
   let attachmentId: number;
 
   beforeAll(async () => {
-    const detail = await request(app)
-      .get(`/api/tickets/${ticketId}`)
-      .set("X-Requester-Id", String(requesterId));
+    const detail = await agent.get(`/api/tickets/${ticketId}`);
     attachmentId = detail.body.attachments[0].id;
   });
 
   it("downloads an active attachment", async () => {
-    const res = await request(app)
-      .get(`/api/attachments/${attachmentId}/download`)
-      .set("X-Requester-Id", String(requesterId));
-
+    const res = await agent.get(`/api/attachments/${attachmentId}/download`);
     expect(res.status).toBe(200);
   });
 
   it("rejects removal without a reason", async () => {
-    const res = await request(app)
-      .patch(`/api/attachments/${attachmentId}/remove`)
-      .set("X-Requester-Id", String(requesterId))
-      .send({ reason: "" });
-
+    const res = await agent.patch(`/api/attachments/${attachmentId}/remove`).send({ reason: "" });
     expect(res.status).toBe(400);
   });
 
   it("soft-removes an attachment with a valid reason", async () => {
-    const res = await request(app)
+    const res = await agent
       .patch(`/api/attachments/${attachmentId}/remove`)
-      .set("X-Requester-Id", String(requesterId))
       .send({ reason: "Uploaded the wrong file." });
 
     expect(res.status).toBe(200);
@@ -96,19 +80,14 @@ describe("attachment download and soft removal", () => {
   });
 
   it("blocks downloading a removed attachment with 410", async () => {
-    const res = await request(app)
-      .get(`/api/attachments/${attachmentId}/download`)
-      .set("X-Requester-Id", String(requesterId));
-
+    const res = await agent.get(`/api/attachments/${attachmentId}/download`);
     expect(res.status).toBe(410);
   });
 
   it("rejects removing an already-removed attachment", async () => {
-    const res = await request(app)
+    const res = await agent
       .patch(`/api/attachments/${attachmentId}/remove`)
-      .set("X-Requester-Id", String(requesterId))
       .send({ reason: "Trying again." });
-
     expect(res.status).toBe(400);
   });
 });
