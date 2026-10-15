@@ -144,6 +144,52 @@ async function main() {
   }
   console.log(`Demo tickets: ${ticketsCreated} created (${DEMO_TICKETS.length - ticketsCreated} already existed).`);
 
+  // Lab 3 Issue 5 (spec section 5.3): example Public Comments and Internal Notes
+  // that contain nothing sensitive. Idempotent: an entry is skipped if the same
+  // text already exists on that ticket.
+  const DEMO_THREADS = [
+    {
+      ticket: "Laptop battery drains quickly",
+      comments: [
+        { by: "alex.thompson@tiktockit.com", text: "Thanks for the report. We are checking the battery health on your device." },
+        { by: "jennifer.anderson@example.com", text: "It also drains when the laptop is idle with the lid closed." },
+      ],
+      notes: [{ by: "alex.thompson@tiktockit.com", text: "Battery report shows high wear. Replacement part requested." }],
+    },
+    {
+      ticket: "Cannot connect to VPN from home",
+      comments: [{ by: "priya.nair@tiktockit.com", text: "Can you confirm which VPN client version you are using?" }],
+      notes: [{ by: "priya.nair@tiktockit.com", text: "Looks like the same certificate issue as the other VPN ticket." }],
+    },
+    {
+      ticket: "Request access to Grade Submission App",
+      comments: [{ by: "wattana.srisuk@tiktockit.com", text: "Please send your employee ID so we can confirm your department." }],
+      notes: [],
+    },
+  ];
+
+  for (const thread of DEMO_THREADS) {
+    const ticketRow = await prisma.ticket.findFirst({ where: { summary: thread.ticket } });
+    if (!ticketRow) continue;
+
+    for (const c of thread.comments) {
+      const author = await prisma.user.findUnique({ where: { email: c.by } });
+      if (!author) continue;
+      const exists = await prisma.publicComment.findFirst({ where: { ticketId: ticketRow.id, content: c.text } });
+      if (!exists) {
+        await prisma.publicComment.create({ data: { ticketId: ticketRow.id, authorId: author.id, content: c.text } });
+      }
+    }
+    for (const n of thread.notes) {
+      const author = await prisma.user.findUnique({ where: { email: n.by } });
+      if (!author) continue;
+      const exists = await prisma.internalNote.findFirst({ where: { ticketId: ticketRow.id, content: n.text } });
+      if (!exists) {
+        await prisma.internalNote.create({ data: { ticketId: ticketRow.id, authorId: author.id, content: n.text } });
+      }
+    }
+  }
+
   console.log(
     `Seeded ${CATEGORY_NAMES.length} categories, ${RELATED_SYSTEM_NAMES.length} related systems, ` +
       `and ${allUsers.length} users (${REQUESTERS.length} Requesters, ${IT_STAFF.length} IT Staff, ` +

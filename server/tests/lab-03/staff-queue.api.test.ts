@@ -29,8 +29,8 @@ async function createTicket(agent: Agent, categoryId: number, relatedSystemId: n
 
 beforeAll(async () => {
   ({ agent: staff, userId: staffId } = await createLoggedInUser("staff-queue-tests-staff@example.com", "IT_STAFF", "Queue Tester"));
-  ({ agent: requesterA } = await createLoggedInUser("staff-queue-tests-a@example.com", "REQUESTER"));
-  ({ agent: requesterB } = await createLoggedInUser("staff-queue-tests-b@example.com", "REQUESTER"));
+  ({ agent: requesterA } = await createLoggedInUser("staff-queue-tests-a@example.com", "REQUESTER", "Queue Requester A"));
+  ({ agent: requesterB } = await createLoggedInUser("staff-queue-tests-b@example.com", "REQUESTER", "Queue Requester B"));
   ({ agent: admin } = await createLoggedInUser("staff-queue-tests-admin@example.com", "ADMINISTRATOR"));
 
   const categories = await request(app).get("/api/categories");
