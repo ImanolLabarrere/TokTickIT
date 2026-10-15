@@ -125,7 +125,15 @@ export async function createTicket(payload: CreateTicketPayload): Promise<Create
   return res.json();
 }
 // Lab 2 Issue 4 — My Tickets list (search/filter/sort/pagination).
-export type TicketStatusValue = "NEW";
+export type TicketStatusValue =
+  | "NEW"
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "WAITING_FOR_REQUESTER"
+  | "RESOLVED"
+  | "CLOSED"
+  | "REOPENED"
+  | "CANCELLED";
 
 export interface TicketListItem {
   id: number;
@@ -221,6 +229,7 @@ export interface PublicComment {
   content: string;
   authorId: number;
   authorName: string;
+  authorRole?: Role;
   createdAt: string;
 }
 
@@ -444,4 +453,258 @@ export async function markProblemAppearsResolved(ticketId: number): Promise<void
     const body = await res.json().catch(() => ({ error: "Unable to update the ticket." }));
     throw new Error(body.error ?? "Unable to update the ticket.");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 4 — IT Staff Ticket Queue
+// ---------------------------------------------------------------------------
+export interface StaffTicketListItem {
+  id: number;
+  ticketNumber: string | null;
+  summary: string;
+  requesterName: string;
+  categoryName: string;
+  requestedPriority: Priority;
+  itPriority: Priority;
+  currentStatus: TicketStatusValue;
+  ownerId: number | null;
+  ownerName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StaffTicketListResponse {
+  data: StaffTicketListItem[];
+  pagination: TicketListPagination;
+}
+
+export interface StaffTicketListParams {
+  search?: string;
+  categoryId?: number;
+  requestedPriority?: Priority;
+  itPriority?: Priority;
+  currentStatus?: TicketStatusValue;
+  ownerId?: "unassigned" | number;
+  sortBy?: "createdAt" | "updatedAt" | "itPriority";
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface StaffOwner {
+  id: number;
+  name: string;
+}
+
+export async function getStaffTickets(params: StaffTicketListParams): Promise<StaffTicketListResponse> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.categoryId) query.set("categoryId", String(params.categoryId));
+  if (params.requestedPriority) query.set("requestedPriority", params.requestedPriority);
+  if (params.itPriority) query.set("itPriority", params.itPriority);
+  if (params.currentStatus) query.set("currentStatus", params.currentStatus);
+  if (params.ownerId !== undefined) query.set("ownerId", String(params.ownerId));
+  if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.sortDir) query.set("sortDir", params.sortDir);
+  if (params.page) query.set("page", String(params.page));
+  if (params.pageSize) query.set("pageSize", String(params.pageSize));
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/staff/tickets?${query.toString()}`, { credentials: "include" });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "Unable to load the queue." }));
+    throw new Error(body.error ?? "Unable to load the queue.");
+  }
+  return res.json();
+}
+
+export async function getStaffOwners(): Promise<StaffOwner[]> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/staff/owners`, { credentials: "include" });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) throw new Error("Unable to load staff members.");
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 5 — IT Staff Ticket Detail
+// ---------------------------------------------------------------------------
+export interface InternalNote {
+  id: number;
+  content: string;
+  authorId: number;
+  authorName: string;
+  authorRole?: Role;
+  createdAt: string;
+}
+
+export interface StaffTicketDetailResponse {
+  id: number;
+  ticketNumber: string | null;
+  summary: string;
+  description: string;
+  requestedPriority: Priority;
+  itPriority: Priority;
+  currentStatus: TicketStatusValue;
+  requesterConfirmedResolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+  requester: { id: number; name: string; email: string };
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string };
+  ownerId: number | null;
+  owner: { id: number; name: string } | null;
+  attachments: AttachmentItem[];
+  publicComments: PublicComment[];
+  internalNotes: InternalNote[];
+}
+
+async function staffRequest<T>(
+  path: string,
+  method: "GET" | "POST" | "PATCH",
+  body?: unknown,
+  fallback = "Request failed. Please try again."
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      credentials: "include",
+      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? fallback);
+  }
+  return res.json();
+}
+
+export function getStaffTicketDetail(ticketId: number): Promise<StaffTicketDetailResponse> {
+  return staffRequest(`/api/staff/tickets/${ticketId}`, "GET", undefined, "Unable to load ticket.");
+}
+
+export function claimTicket(
+  ticketId: number
+): Promise<{ ownerId: number; ownerName: string; currentStatus: TicketStatusValue }> {
+  return staffRequest(`/api/staff/tickets/${ticketId}/claim`, "POST", {}, "Unable to claim the ticket.");
+}
+
+export function assignTicket(
+  ticketId: number,
+  ownerId: number
+): Promise<{ ownerId: number; ownerName: string }> {
+  return staffRequest(`/api/staff/tickets/${ticketId}/assign`, "POST", { ownerId }, "Unable to reassign the ticket.");
+}
+
+export function setItPriority(ticketId: number, itPriority: Priority): Promise<{ itPriority: Priority }> {
+  return staffRequest(`/api/staff/tickets/${ticketId}/priority`, "PATCH", { itPriority }, "Unable to update the priority.");
+}
+
+export function setTicketStatus(
+  ticketId: number,
+  currentStatus: TicketStatusValue
+): Promise<{ currentStatus: TicketStatusValue }> {
+  return staffRequest(`/api/staff/tickets/${ticketId}/status`, "PATCH", { currentStatus }, "Unable to update the status.");
+}
+
+export function postInternalNote(ticketId: number, content: string): Promise<InternalNote> {
+  return staffRequest(`/api/staff/tickets/${ticketId}/notes`, "POST", { content }, "Unable to save the note.");
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 6 — Administrator User Management
+// ---------------------------------------------------------------------------
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+}
+
+export interface AdminUserListParams {
+  search?: string;
+  role?: Role;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminUserListResponse {
+  data: AdminUser[];
+  pagination: TicketListPagination;
+}
+
+export interface CreateAdminUserPayload {
+  name: string;
+  email: string;
+  role: Role;
+  isActive: boolean;
+  initialPassword: string;
+}
+
+export type UpdateAdminUserPayload = Partial<Pick<AdminUser, "name" | "email" | "role" | "isActive">>;
+
+// Carries the HTTP status (so the screen can tell 403 "forbidden" from a safe
+// failure) and any field-level validation messages the API returned.
+export class AdminApiError extends Error {
+  status: number;
+  fields: Record<string, string>;
+
+  constructor(message: string, status: number, fields: Record<string, string> = {}) {
+    super(message);
+    this.name = "AdminApiError";
+    this.status = status;
+    this.fields = fields;
+  }
+}
+
+async function adminRequest<T>(path: string, method: "GET" | "POST" | "PATCH", body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method,
+      credentials: "include",
+      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new AdminApiError("Unable to connect to TokTickIT API", 0);
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new AdminApiError(data.error ?? "Request failed. Please try again.", res.status, data.fields ?? {});
+  }
+  return res.json();
+}
+
+export function getAdminUsers(params: AdminUserListParams): Promise<AdminUserListResponse> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.role) query.set("role", params.role);
+  if (params.page) query.set("page", String(params.page));
+  if (params.pageSize) query.set("pageSize", String(params.pageSize));
+  return adminRequest(`/api/admin/users?${query.toString()}`, "GET");
+}
+
+export function createAdminUser(payload: CreateAdminUserPayload): Promise<AdminUser> {
+  return adminRequest("/api/admin/users", "POST", payload);
+}
+
+export function updateAdminUser(id: number, changes: UpdateAdminUserPayload): Promise<AdminUser> {
+  return adminRequest(`/api/admin/users/${id}`, "PATCH", changes);
+}
+
+export function resetAdminPassword(id: number, newInitialPassword: string): Promise<{ ok: true }> {
+  return adminRequest(`/api/admin/users/${id}/reset-password`, "POST", { newInitialPassword });
 }

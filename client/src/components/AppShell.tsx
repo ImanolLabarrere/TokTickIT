@@ -1,15 +1,30 @@
 import { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext.js";
 
-export type AppView = "my-tickets" | "create-ticket";
+export type AppView = "my-tickets" | "create-ticket" | "my-queue" | "admin";
+
+export interface NavItem {
+  view: AppView;
+  label: string;
+}
 
 interface AppShellProps {
   children: ReactNode;
+  navItems: NavItem[];
   activeView: AppView;
   onNavigate: (view: AppView) => void;
 }
 
-export default function AppShell({ children, activeView, onNavigate }: AppShellProps) {
+const ROLE_LABELS = {
+  REQUESTER: "Requester",
+  IT_STAFF: "IT Staff",
+  ADMINISTRATOR: "Administrator",
+} as const;
+
+// Lab 3 Issue 4: navigation is role-aware (FR-12) — each role only sees the
+// destinations it may use. The server still enforces every route; hiding a
+// button is feedback, not security.
+export default function AppShell({ children, navItems, activeView, onNavigate }: AppShellProps) {
   const { user, logout } = useAuth();
 
   return (
@@ -21,24 +36,23 @@ export default function AppShell({ children, activeView, onNavigate }: AppShellP
         <div className="d-flex align-items-center gap-4">
           <span className="fw-semibold">TokTickIT</span>
           <nav className="d-flex gap-2" aria-label="Main navigation">
-            <button
-              className={`btn btn-sm ${activeView === "my-tickets" ? "btn-light" : "btn-outline-light"}`}
-              aria-current={activeView === "my-tickets" ? "page" : undefined}
-              onClick={() => onNavigate("my-tickets")}
-            >
-              My Tickets
-            </button>
-            <button
-              className={`btn btn-sm ${activeView === "create-ticket" ? "btn-light" : "btn-outline-light"}`}
-              aria-current={activeView === "create-ticket" ? "page" : undefined}
-              onClick={() => onNavigate("create-ticket")}
-            >
-              Create Ticket
-            </button>
+            {navItems.map((item) => (
+              <button
+                key={item.view}
+                className={`btn btn-sm ${activeView === item.view ? "btn-light" : "btn-outline-light"}`}
+                aria-current={activeView === item.view ? "page" : undefined}
+                onClick={() => onNavigate(item.view)}
+              >
+                {item.label}
+              </button>
+            ))}
           </nav>
         </div>
         <div className="d-flex align-items-center gap-3">
           <span>{user?.name}</span>
+          {user && (
+            <span className="badge bg-light text-success-emphasis">{ROLE_LABELS[user.role]}</span>
+          )}
           <button className="btn btn-sm btn-outline-light" onClick={() => logout()}>
             Logout
           </button>

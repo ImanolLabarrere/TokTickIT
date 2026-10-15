@@ -5,18 +5,17 @@ import { hashPassword } from "../../src/utils/password.js";
 
 export const TEST_PASSWORD = "Password123";
 
-// Lab 3 Issue 3 — Lab 2's test files authenticated via the X-Requester-Id
-// header. Now that requireRequester reads the session cookie instead, tests
-// need a real logged-in agent. This upserts a disposable REQUESTER account
-// with mustChangePassword already false (so it can hit protected routes
-// immediately) and returns a supertest agent that stays logged in across
-// requests (cookie jar), plus the created user's id.
-export async function createLoggedInRequester(email: string, name = "Test Requester") {
+export type TestRole = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+
+// Upserts a disposable account with mustChangePassword already false (so it can
+// hit protected routes immediately) and returns a supertest agent that stays
+// logged in across requests (cookie jar), plus the account's id.
+export async function createLoggedInUser(email: string, role: TestRole, name = "Test User") {
   const passwordHash = await hashPassword(TEST_PASSWORD);
   const user = await getPrisma().user.upsert({
     where: { email },
-    update: { name, passwordHash, isActive: true, mustChangePassword: false, role: "REQUESTER" },
-    create: { name, email, passwordHash, isActive: true, mustChangePassword: false, role: "REQUESTER" },
+    update: { name, passwordHash, isActive: true, mustChangePassword: false, role },
+    create: { name, email, passwordHash, isActive: true, mustChangePassword: false, role },
   });
 
   const agent = request.agent(app);
@@ -26,4 +25,9 @@ export async function createLoggedInRequester(email: string, name = "Test Reques
   }
 
   return { agent, userId: user.id };
+}
+
+// Lab 3 Issue 3 helper, kept so the Lab 2 test files do not change.
+export async function createLoggedInRequester(email: string, name = "Test Requester") {
+  return createLoggedInUser(email, "REQUESTER", name);
 }
