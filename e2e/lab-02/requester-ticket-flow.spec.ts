@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
 import fs from "node:fs";
+import { signIn, signOut } from "../helpers/auth";
 
 // Requires: server (port 3000) and client (port 5173) both running, DB
 // migrated and seeded. See package.json's test:e2e script.
@@ -11,15 +12,8 @@ test.describe("Requester ticket flow — happy path (E2E-01)", () => {
   }) => {
     const uniqueSummary = `E2E test ticket ${Date.now()}`;
 
-    await page.goto("/");
-
-    // 1. Development Requester Selection.
-    await expect(
-      page.getByRole("heading", { name: /select development requester/i })
-    ).toBeVisible();
-    await page.getByLabel(/development requester/i).selectOption({ label: "Jennifer Anderson" });
-    await page.getByRole("button", { name: /continue/i }).click();
-    await expect(page.getByText("Jennifer Anderson")).toBeVisible();
+    // 1. Sign in as a seeded Requester (Lab 3 replaced the Development Requester selector).
+    await signIn(page, "jennifer.anderson@example.com");
 
     // 2. Create Ticket (nav button, not the "+ Create Ticket" toolbar one).
     await page
@@ -91,9 +85,7 @@ test.describe("Cross-requester isolation (E2E-02)", () => {
   test("Requester B never sees Requester A's ticket", async ({ page }) => {
     const summary = `Isolation test ${Date.now()}`;
 
-    await page.goto("/");
-    await page.getByLabel(/development requester/i).selectOption({ label: "Jennifer Anderson" });
-    await page.getByRole("button", { name: /continue/i }).click();
+    await signIn(page, "jennifer.anderson@example.com");
 
     await page
       .getByRole("navigation")
@@ -107,10 +99,9 @@ test.describe("Cross-requester isolation (E2E-02)", () => {
     await page.getByRole("button", { name: /submit ticket/i }).click();
     await expect(page.getByText(/ticket created/i)).toBeVisible({ timeout: 10_000 });
 
-    // Switch to a different Requester.
-    await page.getByRole("button", { name: /change requester/i }).click();
-    await page.getByLabel(/development requester/i).selectOption({ label: "Michael Brown" });
-    await page.getByRole("button", { name: /continue/i }).click();
+    // Switch to a different Requester: log out, then sign in as someone else.
+    await signOut(page);
+    await signIn(page, "michael.brown@example.com");
 
     await page
       .getByRole("navigation")
