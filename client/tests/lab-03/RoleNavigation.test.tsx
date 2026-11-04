@@ -37,6 +37,10 @@ describe("Role-aware navigation (FR-12)", () => {
 
   it("gives Administrators the Admin destination only", async () => {
     signInAs("ADMINISTRATOR", "Admin User");
+    vi.spyOn(api, "getAdminUsers").mockResolvedValue({
+      data: [],
+      pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 1 },
+    });
 
     render(<App />);
 

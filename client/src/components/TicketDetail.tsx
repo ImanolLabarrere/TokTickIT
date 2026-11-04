@@ -255,7 +255,12 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
               {ticket.publicComments.map((c) => (
                 <li key={c.id} className="list-group-item">
                   <div className="d-flex justify-content-between">
-                    <strong>{c.authorName}</strong>
+                    <span>
+                      <strong>{c.authorName}</strong>
+                      {c.authorRole === "IT_STAFF" && (
+                        <span className="badge bg-success-subtle text-success-emphasis ms-2">IT Staff</span>
+                      )}
+                    </span>
                     <span className="text-muted small">
                       {new Date(c.createdAt).toLocaleString()}
                     </span>

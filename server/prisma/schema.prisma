@@ -44,6 +44,7 @@ model User {
   tickets   Ticket[] @relation("TicketRequester")
   ownedTickets Ticket[] @relation("TicketOwner")
   publicComments PublicComment[]
+  internalNotes InternalNote[]
 }
 
 model RelatedSystem {
@@ -95,6 +96,7 @@ model Ticket {
   updatedAt         DateTime      @updatedAt
   attachments       Attachment[]
   publicComments    PublicComment[]
+  internalNotes     InternalNote[]
   requesterConfirmedResolved Boolean @default(false)
 
   @@index([requesterId])
@@ -130,6 +132,21 @@ model Attachment {
   isRemoved     Boolean   @default(false)
   removedAt     DateTime?
   removalReason String?
+
+  @@index([ticketId])
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 Issue 5 — Internal Notes (visible to IT Staff only, never to Requesters)
+// ---------------------------------------------------------------------------
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
 
   @@index([ticketId])
 }

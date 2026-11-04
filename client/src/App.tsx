@@ -7,6 +7,8 @@ import CreateTicket from "./components/CreateTicket.js";
 import MyTickets from "./components/MyTickets.js";
 import TicketDetail from "./components/TicketDetail.js";
 import StaffQueue from "./components/StaffQueue.js";
+import StaffTicketDetail from "./components/StaffTicketDetail.js";
+import UserManagement from "./components/UserManagement.js";
 
 type RequesterScreen =
   | { view: "my-tickets" }
@@ -44,9 +46,6 @@ function RequesterApp() {
   );
 }
 
-// Lab 3 Issue 4: the queue is live; the full IT Staff Ticket Detail screen
-// (claim/assign, IT Priority, status, Internal Notes) arrives with Issue 5, so
-// "Open" lands on a clearly-labelled placeholder for now.
 function StaffApp() {
   const [openTicketId, setOpenTicketId] = useState<number | null>(null);
 
@@ -55,27 +54,16 @@ function StaffApp() {
       {openTicketId === null ? (
         <StaffQueue onOpenTicket={setOpenTicketId} />
       ) : (
-        <div>
-          <button className="btn btn-sm btn-outline-secondary mb-3" onClick={() => setOpenTicketId(null)}>
-            ← Back to Queue
-          </button>
-          <h1 className="h4">IT Staff Ticket Detail</h1>
-          <p className="text-muted">
-            Ticket #{openTicketId} — the IT Staff Ticket Detail screen is delivered in the next Issue.
-          </p>
-        </div>
+        <StaffTicketDetail ticketId={openTicketId} onBack={() => setOpenTicketId(null)} />
       )}
     </AppShell>
   );
 }
 
-// User Management is delivered in Issue 6; until then an Administrator lands
-// on a placeholder (and, per the authorization matrix, has no ticket access).
 function AdminApp() {
   return (
     <AppShell navItems={ADMIN_NAV} activeView="admin" onNavigate={() => undefined}>
-      <h1 className="h4">User Management</h1>
-      <p className="text-muted">The Administrator User Management screen is delivered in a later Issue.</p>
+      <UserManagement />
     </AppShell>
   );
 }
