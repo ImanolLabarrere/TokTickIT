@@ -1,5 +1,6 @@
 import { test } from "@playwright/test";
 import fs from "node:fs";
+import { signIn } from "../helpers/auth";
 
 // Lab 2 §8.8 UI Style Checking — Playwright screenshots at desktop, tablet,
 // and mobile viewport sizes, saved where the labsheet's required repository
@@ -15,10 +16,7 @@ for (const viewport of VIEWPORTS) {
     page,
   }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto("/");
-
-    await page.getByLabel(/development requester/i).selectOption({ label: "Jennifer Anderson" });
-    await page.getByRole("button", { name: /continue/i }).click();
+    await signIn(page, "jennifer.anderson@example.com");
 
     for (const dir of ["my-tickets", "create-ticket", "ticket-detail"]) {
       fs.mkdirSync(`artifacts/lab-02/screenshots/${dir}`, { recursive: true });

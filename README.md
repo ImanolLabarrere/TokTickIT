@@ -134,3 +134,39 @@ Lab 1 Git & GitHub cheat sheet for the full command reference.
 - `docs/lab-01/ai_use.md` — AI coding assistant usage and reflection.
 - `docs/lab-01/reviewer.md` — peer review record.
 - `docs/lab-01/tests.md` — test plan and evidence.
+
+## Lab 3 — Authentication, roles, IT Staff and Administrator
+
+Lab 3 replaces the Development Requester selector with real login and adds two roles.
+
+| Role | What they can do |
+|---|---|
+| Requester | Create and follow their own tickets, comment publicly, flag "Problem Appears Resolved" |
+| IT Staff | Shared ticket queue, claim / reassign, IT Priority, status changes, Public Comments, Internal Notes |
+| Administrator | User Management: create, edit, activate / deactivate, assign one role, reset a password |
+
+Every rule is enforced by the API; hiding a button in the UI is only feedback.
+
+**Run it**
+
+```bash
+cd server && npx prisma migrate dev && npx prisma db seed && npm run dev
+cd client && npm run dev        # http://localhost:5173
+```
+
+Seeded accounts and their local-development-only password are listed in
+`docs/lab-03/README-seed-credentials.md`. Every seeded account must choose a new password at its
+first login.
+
+**Test it**
+
+```bash
+cd server && npm test           # API, authorization matrix, unit tests
+cd client && npm test           # component tests
+npx playwright test             # from the repo root, with server and client running
+```
+
+`e2e/global-setup.ts` re-seeds the database before each Playwright run, which also resets any
+password you changed by hand. Responsive screenshots are written to `artifacts/lab-03/screenshots/`.
+The Lab 3 contract is in `docs/lab-03/` (`specification.md`, `api-spec.md`, `ui-spec.md`, `tests.md`).
+

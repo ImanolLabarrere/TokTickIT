@@ -5,7 +5,8 @@
   "scripts": {
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:screenshots": "playwright test screenshots"
+    "test:e2e:screenshots": "playwright test screenshots",
+    "test:e2e:lab3": "playwright test lab-03"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0"

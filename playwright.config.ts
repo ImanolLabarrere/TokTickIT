@@ -6,7 +6,8 @@ import { defineConfig, devices } from "@playwright/test";
 // across two separate dev servers on Windows.
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 30_000,
+  globalSetup: "./e2e/global-setup.ts",
+  timeout: 60_000,
   fullyParallel: false,
   retries: 0,
   reporter: [["list"]],
