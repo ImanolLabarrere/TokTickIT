@@ -32,19 +32,20 @@ model Category {
 // Lab 3 Issue 2 — renamed Requester -> User (see docs/lab-03/specification.md §9)
 // ---------------------------------------------------------------------------
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-    role               Role     @default(REQUESTER)
+  id                 Int             @id @default(autoincrement())
+  name               String
+  email              String          @unique
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  role               Role            @default(REQUESTER)
   passwordHash       String
-  mustChangePassword Boolean  @default(true)
-  updatedAt          DateTime @updatedAt
-  tickets   Ticket[] @relation("TicketRequester")
-  ownedTickets Ticket[] @relation("TicketOwner")
-  publicComments PublicComment[]
-  internalNotes InternalNote[]
+  mustChangePassword Boolean         @default(true)
+  updatedAt          DateTime        @updatedAt
+  tickets            Ticket[]        @relation("TicketRequester")
+  ownedTickets       Ticket[]        @relation("TicketOwner")
+  publicComments     PublicComment[]
+  internalNotes      InternalNote[]
+  actionsTaken       ActionTaken[]
 }
 
 model RelatedSystem {
@@ -76,28 +77,29 @@ enum TicketStatus {
 }
 
 model Ticket {
-  id                Int           @id @default(autoincrement())
-  ticketNumber      String?       @unique
-  requesterId       Int
-  requester         User          @relation("TicketRequester", fields: [requesterId], references: [id])
+  id                         Int             @id @default(autoincrement())
+  ticketNumber               String?         @unique
+  requesterId                Int
+  requester                  User            @relation("TicketRequester", fields: [requesterId], references: [id])
   // Lab 3 Issue 4 — ownership + IT Priority (spec section 9)
-  ownerId           Int?
-  owner             User?         @relation("TicketOwner", fields: [ownerId], references: [id])
-  itPriority        Priority      @default(MEDIUM)
-  categoryId        Int
-  category          Category      @relation(fields: [categoryId], references: [id])
-  relatedSystemId   Int
-  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  summary           String
-  description       String
-  requestedPriority Priority
-  currentStatus     TicketStatus  @default(NEW)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  attachments       Attachment[]
-  publicComments    PublicComment[]
-  internalNotes     InternalNote[]
-  requesterConfirmedResolved Boolean @default(false)
+  ownerId                    Int?
+  owner                      User?           @relation("TicketOwner", fields: [ownerId], references: [id])
+  itPriority                 Priority        @default(MEDIUM)
+  categoryId                 Int
+  category                   Category        @relation(fields: [categoryId], references: [id])
+  relatedSystemId            Int
+  relatedSystem              RelatedSystem   @relation(fields: [relatedSystemId], references: [id])
+  summary                    String
+  description                String
+  requestedPriority          Priority
+  currentStatus              TicketStatus    @default(NEW)
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+  attachments                Attachment[]
+  publicComments             PublicComment[]
+  internalNotes              InternalNote[]
+  actionsTaken               ActionTaken[]
+  requesterConfirmedResolved Boolean         @default(false)
 
   @@index([requesterId])
   @@index([createdAt])
@@ -149,4 +151,27 @@ model InternalNote {
   createdAt DateTime @default(now())
 
   @@index([ticketId])
+}
+
+// ---------------------------------------------------------------------------
+// Lab 4 Issue 2 — Actions Taken (work units logged by IT Staff / Administrator)
+// ---------------------------------------------------------------------------
+model ActionTaken {
+  id                Int       @id @default(autoincrement())
+  ticketId          Int
+  ticket            Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  performedById     Int
+  performedBy       User      @relation(fields: [performedById], references: [id])
+  actionDateTime    DateTime  @default(now())
+  actionDescription String
+  result            String
+  followUpRequired  Boolean   @default(false)
+  followUpNote      String?
+  attachmentNotes   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([ticketId])
+  @@index([performedById])
+  @@index([actionDateTime])
 }

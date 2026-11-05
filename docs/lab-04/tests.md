@@ -25,10 +25,10 @@ Lab 4 completes the verification matrix with end-to-end coverage across all new 
 
 | Test ID | Type | AC(s) | What it tests | Test file | Final |
 |---|---|---|---|---|---|
-| API-01 | API | AC-01, AC-02 | IT Staff creates valid Action Taken; performer is server-assigned; Requester is blocked (403) | `server/tests/lab-04/actions-taken.api.test.ts` | To confirm |
-| API-02 | API | AC-03, AC-04 | Requester views actions on own ticket; returns 404 for foreign ticket | `server/tests/lab-04/actions-taken.api.test.ts` | To confirm |
-| API-03 | API | AC-05, AC-06 | Validation: empty description/result rejected (400); follow-up required requires follow-up note | `server/tests/lab-04/actions-taken.api.test.ts` | To confirm |
-| API-04 | API | BR-02, BR-10 | Any IT Staff can log action on non-owned ticket; edit action persists updates | `server/tests/lab-04/actions-taken.api.test.ts` | To confirm |
+| API-01 | API | AC-01, AC-02 | IT Staff creates valid Action Taken; performer is server-assigned; Requester is blocked (403) | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-02 | API | AC-03, AC-04 | Requester views actions on own ticket; returns 404 for foreign ticket | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-03 | API | AC-05, AC-06 | Validation: empty description/result rejected (400); follow-up required requires follow-up note | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| API-04 | API | BR-02, BR-10 | Any IT Staff can log action on non-owned ticket; edit action persists updates | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | API-05 | API | AC-07, BR-12 | Transition matrix enforcement: valid transitions pass; unlisted transitions rejected (400) | `server/tests/lab-04/ticket-workflow.api.test.ts` | To confirm |
 | API-06 | API | AC-08, BR-14 | Resolution gate: resolving an unassigned ticket fails (400); owner required | `server/tests/lab-04/ticket-workflow.api.test.ts` | To confirm |
 | API-07 | API | BR-15, BR-16 | Flag reset on status change; stale-update conflict returns 409 | `server/tests/lab-04/ticket-workflow.api.test.ts` | To confirm |
