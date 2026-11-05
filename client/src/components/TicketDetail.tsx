@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, ChangeEvent, FormEvent } from "react";
+import { ActionsTaken } from "./ActionsTaken.js";
 import {
   getTicketDetail,
   addAttachment,
@@ -294,6 +295,8 @@ export default function TicketDetail({ ticketId, onBack }: TicketDetailProps) {
           </form>
         </div>
       </div>
+
+      <ActionsTaken ticketId={ticket.id} canManageActions={false} />
 
       <div className="card">
         <div className="card-body">
