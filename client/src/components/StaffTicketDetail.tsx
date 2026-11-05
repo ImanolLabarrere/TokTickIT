@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, FormEvent } from "react";
+import { ActionsTaken } from "./ActionsTaken.js";
 import {
   getStaffTicketDetail,
   getStaffOwners,
@@ -531,6 +532,8 @@ export default function StaffTicketDetail({ ticketId, onBack }: StaffTicketDetai
           </form>
         </div>
       </div>
+
+      <ActionsTaken ticketId={ticket.id} canManageActions={true} />
 
       <div className="card">
         <div className="card-body">
