@@ -59,6 +59,7 @@ function mockDetail(overrides: Partial<api.StaffTicketDetailResponse> = {}) {
     { id: 7, name: "Alex Thompson" },
     { id: 8, name: "Priya Nair" },
   ]);
+  vi.spyOn(api, "getTicketActions").mockResolvedValue([]);
 }
 
 async function renderDetail(onBack = vi.fn()) {
@@ -142,7 +143,7 @@ describe("StaffTicketDetail", () => {
     fireEvent.change(screen.getByLabelText(/change status/i), { target: { value: "IN_PROGRESS" } });
     fireEvent.click(screen.getByRole("button", { name: /^apply$/i }));
 
-    await waitFor(() => expect(setStatus).toHaveBeenCalledWith(1, "IN_PROGRESS"));
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith(1, "IN_PROGRESS", expect.anything()));
   });
 
   it("asks for confirmation before Resolved, and clears the 'appears resolved' indicator", async () => {
@@ -159,7 +160,7 @@ describe("StaffTicketDetail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /yes, change status/i }));
 
-    await waitFor(() => expect(setStatus).toHaveBeenCalledWith(1, "RESOLVED"));
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith(1, "RESOLVED", expect.anything()));
     await waitFor(() =>
       expect(screen.queryByText(/requester confirmed the problem appears resolved/i)).not.toBeInTheDocument()
     );

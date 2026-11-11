@@ -172,7 +172,7 @@ describe("status transitions (FR-08, BR-12, BR-14)", () => {
     const res = await staffA.patch(`/api/staff/tickets/${id}/status`).send({ currentStatus: "IN_PROGRESS" });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ currentStatus: "IN_PROGRESS" });
+    expect(res.body).toMatchObject({ currentStatus: "IN_PROGRESS" });
   });
 
   it("rejects an unlisted transition with 400 and leaves the status unchanged (AC-10)", async () => {
