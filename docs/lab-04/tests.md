@@ -32,14 +32,14 @@ Lab 4 completes the verification matrix with end-to-end coverage across all new 
 | API-05 | API | AC-07, BR-12 | Transition matrix enforcement: valid transitions pass; unlisted transitions rejected (400) | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
 | API-06 | API | AC-08, BR-14 | Resolution gate: resolving an unassigned ticket fails (400); owner required | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
 | API-07 | API | BR-15, BR-16 | Flag reset on status change; stale-update conflict returns 409 | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
-| API-08 | API | AC-09, BR-17 | Requester dashboard metrics strictly scoped to caller; recent 5 tickets | `server/tests/lab-04/requester-dashboard.api.test.ts` | To confirm |
-| API-09 | API | AC-10, BR-18 | Staff dashboard metrics: unassigned count, assigned-to-me count, status & priority counts | `server/tests/lab-04/staff-dashboard.api.test.ts` | To confirm |
-| API-10 | API | AC-11, BR-19 | Auth enforcement: anonymous 401; Requester blocked from staff dashboard (403) | `server/tests/lab-04/staff-dashboard.api.test.ts` | To confirm |
+| API-08 | API | AC-09, BR-17 | Requester dashboard metrics strictly scoped to caller; recent 5 tickets | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pass |
+| API-09 | API | AC-10, BR-18 | Staff dashboard metrics: unassigned count, assigned-to-me count, status & priority counts | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
+| API-10 | API | AC-11, BR-19 | Auth enforcement: anonymous 401; Requester blocked from staff dashboard (403) | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pass |
 | UI-01 | UI | AC-01, AC-12 | Actions Taken form: validation, character limits, follow-up note conditional display | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-02 | UI \| AC-03, FR-05 | Requester view: clean read-only display of actions taken, no edit/create buttons | `client/tests/lab-04/ActionsTaken.test.tsx` | Pass |
 | UI-03 | UI | AC-07, AC-08 | Ticket workflow: status dropdown shows only permitted transitions; resolution confirmation | `client/tests/lab-04/TicketWorkflow.test.tsx` | Pass |
-| UI-04 | UI | AC-13, BR-17 | Requester Dashboard: metric cards render, zero-states, drill-down to My Tickets | `client/tests/lab-04/RequesterDashboard.test.tsx` | To confirm |
-| UI-05 | UI | AC-14, BR-18 | Staff Dashboard: operational cards, quick actions, drill-down to My Queue | `client/tests/lab-04/StaffDashboard.test.tsx` | To confirm |
+| UI-04 | UI | AC-13, BR-17 | Requester Dashboard: metric cards render, zero-states, drill-down to My Tickets | `client/tests/lab-04/RequesterDashboard.test.tsx` | Pass |
+| UI-05 | UI | AC-14, BR-18 | Staff Dashboard: operational cards, quick actions, drill-down to My Queue | `client/tests/lab-04/StaffDashboard.test.tsx` | Pass |
 | REG-01 | Regr. | AC-15, DoD | All Lab 1, 2, and 3 Server test suites pass without regression (145 tests) | `server/tests/lab-01/**`, `lab-02/**`, `lab-03/**` | Pass |
 | REG-02 | Regr. | AC-15, DoD | All Lab 1, 2, and 3 Client test suites pass without regression (55 tests) | `client/tests/lab-01/**`, `lab-02/**`, `lab-03/**` | Pass |
 | E2E-01 | E2E | AC-01..04 | Actions Taken flow: IT Staff adds action, Requester reviews action on ticket detail | `e2e/lab-04/actions-taken-flow.spec.ts` | To confirm |

@@ -822,3 +822,85 @@ export async function updateTicketAction(
   }
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Lab 4 Issue 5 — Role-Based Dashboards
+// ---------------------------------------------------------------------------
+export interface RequesterDashboardMetrics {
+  openTickets: number;
+  waitingForRequester: number;
+  resolvedTickets: number;
+}
+
+export interface RequesterRecentTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatusValue;
+  requestedPriority: Priority;
+  updatedAt: string;
+}
+
+export interface RequesterDashboardResponse {
+  metrics: RequesterDashboardMetrics;
+  recentTickets: RequesterRecentTicket[];
+}
+
+export interface StaffDashboardMetrics {
+  unassignedCount: number;
+  myAssignedCount: number;
+  waitingForRequesterCount: number;
+  highPriorityCount: number;
+  statusCounts: Record<TicketStatusValue, number>;
+  priorityCounts: Record<Priority, number>;
+  totalActiveUsers?: number;
+}
+
+export interface StaffRecentTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  currentStatus: TicketStatusValue;
+  itPriority: Priority;
+  requesterName: string;
+  ownerName: string | null;
+  updatedAt: string;
+}
+
+export interface StaffDashboardResponse {
+  metrics: StaffDashboardMetrics;
+  recentTickets: StaffRecentTicket[];
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardResponse> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/dashboard/requester`, {
+      credentials: "include",
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "Unable to load requester dashboard.");
+  }
+  return res.json();
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboardResponse> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/dashboard/staff`, {
+      credentials: "include",
+    });
+  } catch {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "Unable to load staff dashboard.");
+  }
+  return res.json();
+}
+
