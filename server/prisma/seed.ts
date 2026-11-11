@@ -144,9 +144,7 @@ async function main() {
   }
   console.log(`Demo tickets: ${ticketsCreated} created (${DEMO_TICKETS.length - ticketsCreated} already existed).`);
 
-  // Lab 3 Issue 5 (spec section 5.3): example Public Comments and Internal Notes
-  // that contain nothing sensitive. Idempotent: an entry is skipped if the same
-  // text already exists on that ticket.
+  // Lab 3 Issue 5: example Public Comments and Internal Notes
   const DEMO_THREADS = [
     {
       ticket: "Laptop battery drains quickly",
@@ -186,6 +184,106 @@ async function main() {
       const exists = await prisma.internalNote.findFirst({ where: { ticketId: ticketRow.id, content: n.text } });
       if (!exists) {
         await prisma.internalNote.create({ data: { ticketId: ticketRow.id, authorId: author.id, content: n.text } });
+      }
+    }
+  }
+
+  // Lab 4 Issue 2 (§5.3): Actions Taken covering 0, 1, and multiple actions.
+  // Shows different IT Staff members logging work on the same ticket (BR-02).
+  const DEMO_ACTIONS = [
+    {
+      ticket: "Laptop battery drains quickly",
+      actions: [
+        {
+          by: "alex.thompson@tiktockit.com",
+          description: "Ran Windows powercfg battery report and verified degradation cycle count (>850 cycles).",
+          result: "Confirmed battery capacity is at 41% of original design capacity.",
+          followUpRequired: true,
+          followUpNote: "Ordered replacement battery pack; notify user when inventory arrives.",
+          attachmentNotes: "battery_report_output.html",
+        },
+        {
+          by: "priya.nair@tiktockit.com",
+          description: "Installed OEM replacement battery and tested charge/discharge rate under load.",
+          result: "Laptop holds full charge, benchmark run completed successfully for 45 minutes.",
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: null,
+        },
+      ],
+    },
+    {
+      ticket: "Cannot connect to VPN from home",
+      actions: [
+        {
+          by: "priya.nair@tiktockit.com",
+          description: "Checked user VPN client certificates on CA server and reissued client profile.",
+          result: "User successfully authenticated through VPN portal on second attempt.",
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: "vpn_success_handshake.png",
+        },
+      ],
+    },
+    {
+      ticket: "New employee account setup",
+      actions: [
+        {
+          by: "alex.thompson@tiktockit.com",
+          description: "Created Active Directory credentials and provisioned university mail inbox.",
+          result: "Account provisioned, welcome onboarding kit sent to department supervisor.",
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: null,
+        },
+        {
+          by: "wattana.srisuk@tiktockit.com",
+          description: "Assigned VPN remote access permission and multi-factor authenticator enrollment link.",
+          result: "MFA registered successfully, initial test login passed.",
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: null,
+        },
+      ],
+    },
+    {
+      ticket: "Printer keeps showing offline",
+      actions: [
+        {
+          by: "priya.nair@tiktockit.com",
+          description: "Pinged network printer IP and restarted print spooler service on host workstation.",
+          result: "Printer resumed accepting print jobs, test page printed cleanly.",
+          followUpRequired: true,
+          followUpNote: "Monitor print queue over next 48 hours for recurring spooler freeze.",
+          attachmentNotes: "spooler_restart_log.txt",
+        },
+      ],
+    },
+  ];
+
+  for (const item of DEMO_ACTIONS) {
+    const ticketRow = await prisma.ticket.findFirst({ where: { summary: item.ticket } });
+    if (!ticketRow) continue;
+
+    for (const a of item.actions) {
+      const performer = await prisma.user.findUnique({ where: { email: a.by } });
+      if (!performer) continue;
+      const exists = await prisma.actionTaken.findFirst({
+        where: { ticketId: ticketRow.id, actionDescription: a.description },
+      });
+      if (!exists) {
+        await prisma.actionTaken.create({
+          data: {
+            ticketId: ticketRow.id,
+            performedById: performer.id,
+            actionDescription: a.description,
+            result: a.result,
+            followUpRequired: a.followUpRequired,
+            followUpNote: a.followUpNote,
+            attachmentNotes: a.attachmentNotes,
+            actionDateTime: new Date(),
+          },
+        });
       }
     }
   }
