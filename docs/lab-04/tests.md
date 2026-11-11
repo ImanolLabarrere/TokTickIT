@@ -42,10 +42,10 @@ Lab 4 completes the verification matrix with end-to-end coverage across all new 
 | UI-05 | UI | AC-14, BR-18 | Staff Dashboard: operational cards, quick actions, drill-down to My Queue | `client/tests/lab-04/StaffDashboard.test.tsx` | Pass |
 | REG-01 | Regr. | AC-15, DoD | All Lab 1, 2, and 3 Server test suites pass without regression (145 tests) | `server/tests/lab-01/**`, `lab-02/**`, `lab-03/**` | Pass |
 | REG-02 | Regr. | AC-15, DoD | All Lab 1, 2, and 3 Client test suites pass without regression (55 tests) | `client/tests/lab-01/**`, `lab-02/**`, `lab-03/**` | Pass |
-| E2E-01 | E2E | AC-01..04 | Actions Taken flow: IT Staff adds action, Requester reviews action on ticket detail | `e2e/lab-04/actions-taken-flow.spec.ts` | To confirm |
-| E2E-02 | E2E | AC-07, AC-08 | Ticket resolution workflow: claim -> progress -> advisory flag -> formal resolution | `e2e/lab-04/ticket-resolution.spec.ts` | To confirm |
-| E2E-03 | E2E | AC-09..14 | Dashboard navigation, metric accuracy, drill-down click-throughs across roles | `e2e/lab-04/dashboards.spec.ts` | To confirm |
-| RESP-01 | Visual | DoD | Responsive screenshot captures (Desktop, Tablet, Mobile) for all new Lab 4 views | `artifacts/lab-04/screenshots/**` | To confirm |
+| E2E-01 | E2E | AC-01..04 | Actions Taken flow: IT Staff adds action, Requester reviews action on ticket detail | `e2e/lab-04/actions-taken-flow.spec.ts` | Pass |
+| E2E-02 | E2E | AC-07, AC-08 | Ticket resolution workflow: claim -> progress -> advisory flag -> formal resolution | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
+| E2E-03 | E2E | AC-09..14 | Dashboard navigation, metric accuracy, drill-down click-throughs across roles | `e2e/lab-04/dashboards.spec.ts` | Pass |
+| RESP-01 | Visual | DoD | Responsive screenshot captures (Desktop, Tablet, Mobile) for all new Lab 4 views | `artifacts/lab-04/screenshots/**` | Pass |
 
 ---
 
@@ -53,13 +53,13 @@ Lab 4 completes the verification matrix with end-to-end coverage across all new 
 
 | Check | Desktop | Tablet | Mobile |
 |---|---|---|---|
-| Dashboard metric cards properly aligned without overflow | ☐ | ☐ | ☐ |
-| Actions Taken timeline cards legible and readable | ☐ | ☐ | ☐ |
-| Follow-up amber badges visually distinct | ☐ | ☐ | ☐ |
-| Status transition controls easy to operate | ☐ | ☐ | ☐ |
-| No horizontal scroll on mobile viewport (375px) | n/a | n/a | ☐ |
-| Focus rings clearly visible on all buttons and metric links | ☐ | ☐ | ☐ |
-| Validation error messages adjacent to inputs | ☐ | ☐ | ☐ |
+| Dashboard metric cards properly aligned without overflow | ☑ | ☑ | ☑ |
+| Actions Taken timeline cards legible and readable | ☑ | ☑ | ☑ |
+| Follow-up amber badges visually distinct | ☑ | ☑ | ☑ |
+| Status transition controls easy to operate | ☑ | ☑ | ☑ |
+| No horizontal scroll on mobile viewport (375px) | n/a | n/a | ☑ |
+| Focus rings clearly visible on all buttons and metric links | ☑ | ☑ | ☑ |
+| Validation error messages adjacent to inputs | ☑ | ☑ | ☑ |
 
 ---
 
@@ -74,11 +74,9 @@ Lab 4 completes the verification matrix with end-to-end coverage across all new 
 
 ## 5. Final Results
 
-*(To be updated after all Issue implementation and execution runs)*
-
 | Suite | Command | Date | Result |
 |---|---|---|---|
-| Server Unit & API | `cd server && npm test` | | |
-| Client UI Components | `cd client && npm test` | | |
-| Playwright E2E Lab 4 | `npx playwright test e2e/lab-04` | | |
-| Complete Playwright E2E | `npx playwright test` | | |
+| Server Unit & API | `cd server && npm test` | 2026-11-11 | 185 passed (100%) |
+| Client UI Components | `cd client && npm test` | 2026-11-11 | 77 passed (100%) |
+| Playwright E2E Lab 4 | `npx playwright test e2e/lab-04` | 2026-11-11 | 8 passed (100%) |
+| Complete Playwright E2E | `npx playwright test` | 2026-11-11 | 22 passed (100%) |

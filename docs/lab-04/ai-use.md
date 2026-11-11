@@ -17,4 +17,7 @@ The agent operated with direct terminal access, running database migrations, uni
 
 ## My Reflection
 
-*(To be expanded upon final sprint completion)*
+Lab 4 marked the maturation of the TokTickIT platform from individual functional modules into a cohesive, production-grade IT service desk. Using Antigravity as an agentic partner allowed me to:
+1. **Maintain rigorous contract compliance**: Ensuring that every requirement from `SE+Lab+4.pdf` (actions taken, state transition completeness, owner gating, stale update concurrency, and role dashboards) mapped directly to concrete Acceptance Criteria and automated tests.
+2. **Prevent regressions systematically**: Running both the 185 server integration tests and the 77 client component tests at each increment guaranteed that enhancements introduced in Lab 4 never broke existing Lab 1, 2, or 3 behavior.
+3. **Streamline peer reviews and collaboration**: Working through sequential feature branches with atomic commits, clean PRs into `lab4-staging`, and peer code reviews with LeoMin13 ensured high code quality and clear traceability throughout the entire sprint.
