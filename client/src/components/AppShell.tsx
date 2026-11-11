@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext.js";
 
-export type AppView = "my-tickets" | "create-ticket" | "my-queue" | "admin";
+export type AppView = "dashboard" | "my-tickets" | "create-ticket" | "my-queue" | "admin";
 
 export interface NavItem {
   view: AppView;
