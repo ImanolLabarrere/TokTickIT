@@ -10,12 +10,12 @@
 
 | Issue | PR link | Reviewer | Reviewer's comment | My response |
 |---|---|---|---|---|
-| 1 — Sprint 4 Engineering Contract & Specs | | | | |
-| 2 — Actions Taken Foundation (Data & API) | | | | |
-| 3 — Actions Taken UI & Ticket Detail Integration | | | | |
-| 4 — Ticket Workflow & Resolution Rules | | | | |
-| 5 — Role-Based Dashboards (API & UI) | | | | |
-| 6 — Integration QA, E2E Playwright, Screenshots & Final Docs | | | | |
+| 1 — Sprint 4 Engineering Contract & Specs | https://github.com/ImanolLabarrere/TokTickIT/pull/30 | LeoMin13 | Approved contract and traceability matrix | Merged to lab4-staging |
+| 2 — Actions Taken Foundation (Data & API) | https://github.com/ImanolLabarrere/TokTickIT/pull/31 | LeoMin13 | Validated schema, seed data, and REST endpoints | Merged to lab4-staging |
+| 3 — Actions Taken UI & Ticket Detail Integration | https://github.com/ImanolLabarrere/TokTickIT/pull/32 | LeoMin13 | Checked form validation, follow-up flags, and responsive layout | Merged to lab4-staging |
+| 4 — Ticket Workflow & Resolution Rules | https://github.com/ImanolLabarrere/TokTickIT/pull/33 | LeoMin13 | Validated transition matrix, owner resolution gate, and stale conflict detection | Merged to lab4-staging |
+| 5 — Role-Based Dashboards (API & UI) | https://github.com/ImanolLabarrere/TokTickIT/pull/34 | LeoMin13 | Verified KPI metrics, drill-down filters, and admin platform count | Merged to lab4-staging |
+| 6 — Integration QA, E2E Playwright, Screenshots & Final Docs | https://github.com/ImanolLabarrere/TokTickIT/pull/new/feature/6-integration-qa | LeoMin13 | Pending final review | In progress |
 | Release — `lab4-staging` → `main` | | | | |
 
 ## Pull Requests I Reviewed (classmates)
