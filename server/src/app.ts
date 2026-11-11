@@ -68,7 +68,7 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 app.get("/api/requesters", async (_req: Request, res: Response) => {
   try {
-        const requesters = await getPrisma().user.findMany({
+    const requesters = await getPrisma().user.findMany({
       where: { isActive: true, role: "REQUESTER" },
       orderBy: { id: "asc" },
       select: { id: true, name: true, email: true },
@@ -598,6 +598,7 @@ app.post(
 // Requester list above (BR-13): invalid params fall back, never error.
 // ---------------------------------------------------------------------------
 const requireStaff: RequestHandler[] = [requireAuth, blockIfMustChangePassword, requireRole("IT_STAFF")];
+const requireStaffOrAdmin: RequestHandler[] = [requireAuth, blockIfMustChangePassword, requireRole("IT_STAFF", "ADMINISTRATOR")];
 const STAFF_SORTABLE_FIELDS = new Set(["createdAt", "updatedAt", "itPriority"]);
 
 app.get("/api/staff/tickets", requireStaff, async (req: Request, res: Response) => {
@@ -723,11 +724,11 @@ app.get("/api/staff/owners", requireStaff, async (_req: Request, res: Response) 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   NEW: ["OPEN", "CANCELLED"],
   OPEN: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
-  IN_PROGRESS: ["WAITING_FOR_REQUESTER", "RESOLVED", "OPEN"],
-  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "OPEN", "RESOLVED"],
+  IN_PROGRESS: ["WAITING_FOR_REQUESTER", "RESOLVED", "OPEN", "CANCELLED"],
+  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "OPEN", "RESOLVED", "CANCELLED"],
   RESOLVED: ["CLOSED", "REOPENED"],
   CLOSED: ["REOPENED"],
-  REOPENED: ["OPEN", "IN_PROGRESS"],
+  REOPENED: ["OPEN", "IN_PROGRESS", "CANCELLED"],
   CANCELLED: [],
 };
 
@@ -902,10 +903,13 @@ app.patch("/api/staff/tickets/:id/priority", requireStaff, async (req: Request, 
 });
 
 // BR-12 / BR-14: only listed transitions are allowed, and a successful change
-// always clears the Requester's "appears resolved" flag.
-app.patch("/api/staff/tickets/:id/status", requireStaff, async (req: Request, res: Response) => {
+// BR-12 / BR-14 / BR-16: only listed transitions are allowed, resolving requires an owner,
+// stale update conflict detection returns 409, and status changes clear requesterConfirmedResolved.
+app.patch("/api/staff/tickets/:id/status", requireStaffOrAdmin, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const to = req.body.currentStatus;
+  const expectedCurrentStatus = req.body.expectedCurrentStatus;
+
   if (!Number.isInteger(id)) {
     res.status(404).json({ error: "Ticket not found." });
     return;
@@ -923,8 +927,27 @@ app.patch("/api/staff/tickets/:id/status", requireStaff, async (req: Request, re
     }
 
     const from = ticket.currentStatus;
+
+    // BR-16: Stale update detection
+    if (expectedCurrentStatus && expectedCurrentStatus !== from) {
+      res.status(409).json({
+        error: "Conflict: Ticket status was modified by another user.",
+        currentStatus: from,
+      });
+      return;
+    }
+
+    // BR-12: Permitted transition check
     if (!STATUS_TRANSITIONS[from].includes(to)) {
       res.status(400).json({ error: "Invalid status transition", from, to });
+      return;
+    }
+
+    // BR-14: Resolution gate — resolving/closing requires an assigned owner
+    if ((to === "RESOLVED" || to === "CLOSED") && ticket.ownerId === null) {
+      res.status(400).json({
+        error: "Cannot resolve an unassigned ticket. Please assign an owner first.",
+      });
       return;
     }
 
@@ -934,11 +957,14 @@ app.patch("/api/staff/tickets/:id/status", requireStaff, async (req: Request, re
       data: { currentStatus: to as (typeof STATUSES)[number], requesterConfirmedResolved: false },
     });
     if (result.count === 0) {
-      res.status(409).json({ error: "The ticket was changed by someone else. Reload and try again." });
+      res.status(409).json({
+        error: "Conflict: Ticket status was modified by another user.",
+        currentStatus: from,
+      });
       return;
     }
 
-    res.status(200).json({ currentStatus: to });
+    res.status(200).json({ currentStatus: to, requesterConfirmedResolved: false });
   } catch (err) {
     console.error("PATCH /api/staff/tickets/:id/status failed:", err);
     res.status(500).json({ error: "Unable to update the status. Please try again." });
@@ -1268,12 +1294,6 @@ function shapeActionTaken(action: {
     updatedAt: action.updatedAt,
   };
 }
-
-const requireStaffOrAdmin: RequestHandler[] = [
-  requireAuth,
-  blockIfMustChangePassword,
-  requireRole("IT_STAFF", "ADMINISTRATOR"),
-];
 
 // GET /api/tickets/:id/actions — Requesters can only access their own ticket (404 otherwise);
 // IT Staff and Administrators can access any ticket.

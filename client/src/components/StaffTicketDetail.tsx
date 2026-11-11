@@ -27,11 +27,11 @@ type Status = "loading" | "ready" | "error";
 const TRANSITIONS: Record<TicketStatusValue, TicketStatusValue[]> = {
   NEW: ["OPEN", "CANCELLED"],
   OPEN: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
-  IN_PROGRESS: ["WAITING_FOR_REQUESTER", "RESOLVED", "OPEN"],
-  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "OPEN", "RESOLVED"],
+  IN_PROGRESS: ["WAITING_FOR_REQUESTER", "RESOLVED", "OPEN", "CANCELLED"],
+  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "OPEN", "RESOLVED", "CANCELLED"],
   RESOLVED: ["CLOSED", "REOPENED"],
   CLOSED: ["REOPENED"],
-  REOPENED: ["OPEN", "IN_PROGRESS"],
+  REOPENED: ["OPEN", "IN_PROGRESS", "CANCELLED"],
   CANCELLED: [],
 };
 
@@ -186,7 +186,7 @@ export default function StaffTicketDetail({ ticketId, onBack }: StaffTicketDetai
     setActionError("");
     setSavingStatus(true);
     try {
-      const result = await setTicketStatus(ticketId, target);
+      const result = await setTicketStatus(ticketId, target, ticket?.currentStatus);
       // BR-14: a status change clears the Requester's "appears resolved" flag.
       patchTicket({ currentStatus: result.currentStatus, requesterConfirmedResolved: false });
       setNextStatus("");

@@ -613,9 +613,15 @@ export function setItPriority(ticketId: number, itPriority: Priority): Promise<{
 
 export function setTicketStatus(
   ticketId: number,
-  currentStatus: TicketStatusValue
-): Promise<{ currentStatus: TicketStatusValue }> {
-  return staffRequest(`/api/staff/tickets/${ticketId}/status`, "PATCH", { currentStatus }, "Unable to update the status.");
+  currentStatus: TicketStatusValue,
+  expectedCurrentStatus?: TicketStatusValue
+): Promise<{ currentStatus: TicketStatusValue; requesterConfirmedResolved?: boolean }> {
+  return staffRequest(
+    `/api/staff/tickets/${ticketId}/status`,
+    "PATCH",
+    expectedCurrentStatus !== undefined ? { currentStatus, expectedCurrentStatus } : { currentStatus },
+    "Unable to update the status."
+  );
 }
 
 export function postInternalNote(ticketId: number, content: string): Promise<InternalNote> {
